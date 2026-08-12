@@ -2145,7 +2145,7 @@
       <label for="portalUrlConfig">URL Web App — Config (accès agents)</label>
       <input type="text" id="portalUrlConfig" placeholder="https://script.google.com/macros/s/.../exec">
     </div>
-    <p class="portal-hint">Utilisée pour l'écran de connexion : lit les colonnes NOM / PASS / ROLE de l'onglet "Config" du Gsheet TELCO-OI 002. Ce script étant séparé, il conserve sa propre URL.</p>
+    <p class="portal-hint">Utilisée pour l'écran de connexion : ce script Apps Script vérifie les identifiants agents codés en dur dans son propre code (aucun lien avec un Gsheet). Il conserve sa propre URL, séparée de l'application fusionnée.</p>
 
     <p class="admin-err" id="portalAdminManageErr">Veuillez saisir une URL valide pour chaque champ.</p>
     <button type="button" class="admin-save-btn" id="portalAdminSaveBtn">Enregistrer</button>
@@ -2183,19 +2183,22 @@
 (function(){
   // ============================================================
   // Accès agents — authentification déléguée entièrement au serveur
-  // (Apps Script dédié, onglet "Config" du Gsheet TELCO-OI 002,
-  // colonnes NOM / PASS / ROLE). Le frontend n'a JAMAIS accès à la
-  // liste des agents ni aux mots de passe : il envoie uniquement le
-  // nom et le mot de passe saisis, en POST, et le serveur répond
-  // ok/erreur. Aucun fetch de données n'a lieu avant la connexion.
+  // (Apps Script dédié "Config", identifiants NOM / PASS / ROLE codés
+  // en dur dans ce script — aucun lien avec un Gsheet). Le frontend
+  // n'a JAMAIS accès à la liste des agents ni aux mots de passe : il
+  // envoie uniquement le nom et le mot de passe saisis, en POST, et
+  // le serveur répond ok/erreur. Aucun fetch de données n'a lieu
+  // avant la connexion.
   // ============================================================
 
   const CONFIG_URL_KEY = 'portal_config_webapp_url_v1';
-  const CONFIG_DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbyxFIg5wfRv-aY3GSzIF2ckc5URrWiBYU1r2KFlH9PhwIqPcFdYX-u_DzSDjR58hi5Etw/exec';
+  const CONFIG_DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbzIDZN5WGfQxR_5QPvnJ1YyfW1bFVKPn04qHDxfVj5BylaKEGZ-SuzKS70ZJkd6NpCZiA/exec';
 
   function getConfigUrl(){
-    try { return localStorage.getItem(CONFIG_URL_KEY) || CONFIG_DEFAULT_URL; }
-    catch(e){ return CONFIG_DEFAULT_URL; }
+    try {
+      localStorage.setItem(CONFIG_URL_KEY, CONFIG_DEFAULT_URL);
+    } catch(e) {}
+    return CONFIG_DEFAULT_URL;
   }
   function setConfigUrl(url){
     localStorage.setItem(CONFIG_URL_KEY, url);
@@ -2239,7 +2242,8 @@
 
   // Mécanisme global : chaque module (RPI, VDC, ASP, Facebook...) doit
   // attendre que l'agent soit authentifié avant de charger ses propres
-  // données depuis le Gsheet. window.PORTAL_onAuthenticated(cb) appelle cb
+  // données depuis le Gsheet (Config, lui, ne lit plus de Gsheet du tout).
+  // window.PORTAL_onAuthenticated(cb) appelle cb
   // immédiatement si la session est déjà validée (ex: session restaurée),
   // sinon la met en attente jusqu'à unlockPortal(). Aucune donnée n'est
   // donc jamais chargée avant que les identifiants aient été vérifiés.
