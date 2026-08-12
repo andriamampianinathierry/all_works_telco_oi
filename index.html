@@ -1067,9 +1067,9 @@
       <input type="password" id="agentLoginPassword" placeholder="••••••••" autocomplete="current-password">
     </div>
     <p class="login-err" id="agentLoginErr">Nom d'agent ou mot de passe incorrect.</p>
-    <p class="login-err" id="agentLoginSyncErr">Impossible de récupérer la liste des agents (Gsheet). Vérifiez la connexion ou l'URL configurée par l'admin.</p>
-    <p class="sub" id="agentLoginLoading" style="margin:4px 0 14px;">Chargement de la liste des agents…</p>
-    <button type="button" class="login-submit" id="agentLoginSubmit" disabled>Se connecter</button>
+    <p class="login-err" id="agentLoginSyncErr">Connexion au serveur impossible. Vérifiez la connexion ou l'URL configurée par l'admin.</p>
+    <p class="sub" id="agentLoginLoading" style="margin:4px 0 14px;display:none;">Connexion en cours…</p>
+    <button type="button" class="login-submit" id="agentLoginSubmit">Se connecter</button>
   </div>
 </div>
 
@@ -2182,14 +2182,13 @@
 <script>
 (function(){
   // ============================================================
-  // Accès agents — liste des agents autorisés (nom + mot de passe),
-  // synchronisée depuis l'onglet "Config" du Gsheet TELCO-OI 002
-  // (colonnes NOM / PASS / ROLE) via un Apps Script Web App dédié.
-  // Aucune liste codée en dur : tout est géré dans le Gsheet.
+  // Accès agents — authentification déléguée entièrement au serveur
+  // (Apps Script dédié, onglet "Config" du Gsheet TELCO-OI 002,
+  // colonnes NOM / PASS / ROLE). Le frontend n'a JAMAIS accès à la
+  // liste des agents ni aux mots de passe : il envoie uniquement le
+  // nom et le mot de passe saisis, en POST, et le serveur répond
+  // ok/erreur. Aucun fetch de données n'a lieu avant la connexion.
   // ============================================================
-  let PORTAL_AGENTS = [];
-  let agentsLoaded = false;
-  let agentsLoadFailed = false;
 
   const CONFIG_URL_KEY = 'portal_config_webapp_url_v1';
   const CONFIG_DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbxBI_oUOKQnvzQpo1AN2L51jVKjOyj8xk2kLZdaXKcY_-lADCi7X_GSmExx00LrTC4TGA/exec';
@@ -2224,39 +2223,6 @@
   const sessionLabel = document.getElementById('agentSessionLabel');
   const logoutBtn = document.getElementById('agentLogoutBtn');
 
-  async function loadAgents(){
-    loadingMsg.style.display = 'block';
-    syncErrMsg.classList.remove('show');
-    submitBtn.disabled = true;
-
-    if (!configConfigured()) {
-      agentsLoadFailed = true;
-      loadingMsg.style.display = 'none';
-      syncErrMsg.textContent = "URL du Web App Config non configurée. Ouvrez le panneau admin du portail pour la renseigner.";
-      syncErrMsg.classList.add('show');
-      submitBtn.disabled = false; // on laisse réessayer, attemptLogin gérera l'échec
-      return;
-    }
-
-    try {
-      const res = await fetch(`${getConfigUrl()}?action=getusers`);
-      const data = await res.json();
-      if (!data || !Array.isArray(data.users)) throw new Error('Réponse invalide');
-      PORTAL_AGENTS = data.users.map(u => ({ name: u.nom, password: u.pass, role: u.role || '' }));
-      agentsLoaded = true;
-      agentsLoadFailed = false;
-      loadingMsg.style.display = 'none';
-      submitBtn.disabled = false;
-      nameInput.focus();
-    } catch (err) {
-      agentsLoadFailed = true;
-      loadingMsg.style.display = 'none';
-      syncErrMsg.textContent = "Impossible de récupérer la liste des agents (Gsheet). Vérifiez la connexion ou l'URL configurée par l'admin.";
-      syncErrMsg.classList.add('show');
-      submitBtn.disabled = false;
-    }
-  }
-
   function getSessionAgent(){
     try { return sessionStorage.getItem(SESSION_KEY) || ''; }
     catch(e){ return ''; }
@@ -2271,30 +2237,75 @@
     try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
   }
 
+  // Mécanisme global : chaque module (RPI, VDC, ASP, Facebook...) doit
+  // attendre que l'agent soit authentifié avant de charger ses propres
+  // données depuis le Gsheet. window.PORTAL_onAuthenticated(cb) appelle cb
+  // immédiatement si la session est déjà validée (ex: session restaurée),
+  // sinon la met en attente jusqu'à unlockPortal(). Aucune donnée n'est
+  // donc jamais chargée avant que les identifiants aient été vérifiés.
+  let portalAuthenticated = false;
+  const portalAuthCallbacks = [];
+  window.PORTAL_onAuthenticated = function(cb){
+    if (portalAuthenticated) cb();
+    else portalAuthCallbacks.push(cb);
+  };
+
   function unlockPortal(name){
     overlay.classList.remove('show');
     sessionLabel.innerHTML = 'Connecté : <b>' + name + '</b>';
+    if (!portalAuthenticated) {
+      portalAuthenticated = true;
+      portalAuthCallbacks.splice(0).forEach(cb => { try { cb(); } catch(e){} });
+    }
   }
 
-  function attemptLogin(){
-    if (!agentsLoaded) {
-      // Liste pas encore récupérée (ou échec) : on retente une synchronisation
-      // avant de refuser la connexion.
-      loadAgents();
-      return;
-    }
+  // Authentification : le nom et le mot de passe saisis sont envoyés en
+  // POST au Web App "Config", qui seul connaît la liste des agents et
+  // vérifie les identifiants côté serveur. Le frontend ne reçoit jamais
+  // la liste des agents ni les mots de passe, et aucune requête n'a lieu
+  // tant que l'agent n'a pas cliqué sur "Se connecter".
+  async function attemptLogin(){
     const name = nameInput.value.trim();
     const pwd = passwordInput.value;
-    const match = PORTAL_AGENTS.find(a =>
-      a.name.toLowerCase() === name.toLowerCase() && a.password === pwd
-    );
-    if (!match) {
+
+    errMsg.classList.remove('show');
+    syncErrMsg.classList.remove('show');
+
+    if (!name || !pwd) {
       errMsg.classList.add('show');
       return;
     }
-    errMsg.classList.remove('show');
-    setSessionAgent(match.name);
-    unlockPortal(match.name);
+    if (!configConfigured()) {
+      syncErrMsg.textContent = "URL du Web App Config non configurée. Ouvrez le panneau admin du portail pour la renseigner.";
+      syncErrMsg.classList.add('show');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    loadingMsg.style.display = 'block';
+
+    try {
+      const res = await fetch(getConfigUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'login', nom: name, pass: pwd })
+      });
+      const data = await res.json();
+
+      if (!data || !data.ok) {
+        errMsg.textContent = (data && data.error) ? data.error : "Nom d'agent ou mot de passe incorrect.";
+        errMsg.classList.add('show');
+        return;
+      }
+      setSessionAgent(data.name || name);
+      unlockPortal(data.name || name);
+    } catch (err) {
+      syncErrMsg.textContent = "Connexion au serveur impossible. Vérifiez la connexion ou l'URL configurée par l'admin.";
+      syncErrMsg.classList.add('show');
+    } finally {
+      loadingMsg.style.display = 'none';
+      submitBtn.disabled = false;
+    }
   }
 
   submitBtn.addEventListener('click', attemptLogin);
@@ -2307,17 +2318,16 @@
     location.reload();
   });
 
-  // Au chargement : on synchronise d'abord la liste des agents depuis le
-  // Gsheet, puis on vérifie si une session valide existe déjà dans cet
-  // onglet pour sauter directement l'écran de connexion.
-  loadAgents().then(() => {
-    const existing = getSessionAgent();
-    if (existing && agentsLoaded && PORTAL_AGENTS.some(a => a.name === existing)) {
-      unlockPortal(existing);
-    } else {
-      clearSessionAgent();
-    }
-  });
+  // Au chargement : AUCUNE requête réseau et aucun fetch de données tant
+  // que l'agent ne s'est pas connecté. On vérifie seulement si une session
+  // valide existe déjà dans cet onglet — posée uniquement après une
+  // authentification réussie côté serveur — pour sauter l'écran de connexion.
+  const existingSession = getSessionAgent();
+  if (existingSession) {
+    unlockPortal(existingSession);
+  } else {
+    nameInput.focus();
+  }
 })();
 </script>
 
@@ -2801,7 +2811,7 @@
 
   renderTable();
   initNewTicket();
-  refreshCards();
+  if (window.PORTAL_onAuthenticated) window.PORTAL_onAuthenticated(refreshCards); else refreshCards();
 
 })();
 </script>
@@ -3203,7 +3213,7 @@
 
   renderTable();
   initNewTicket();
-  refreshCards();
+  if (window.PORTAL_onAuthenticated) window.PORTAL_onAuthenticated(refreshCards); else refreshCards();
 
 })();
 </script>
@@ -3669,7 +3679,7 @@
 
   renderTable();
   initNewTicket();
-  refreshCards();
+  if (window.PORTAL_onAuthenticated) window.PORTAL_onAuthenticated(refreshCards); else refreshCards();
 
 })();
 </script>
@@ -4009,7 +4019,10 @@
   });
 
   renderTable();
-  if (facebookWebappConfigured()) fetchFacebookFromSheet();
+  if (facebookWebappConfigured()) {
+    if (window.PORTAL_onAuthenticated) window.PORTAL_onAuthenticated(fetchFacebookFromSheet);
+    else fetchFacebookFromSheet();
+  }
 })();
 </script>
 
