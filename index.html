@@ -1,0 +1,4899 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portail Agent — RPI OI / Guichet VDC</title>
+<style>
+/* ==========================================================================
+   Styles communs / RPI OI (variables par défaut au niveau :root)
+   ========================================================================== */
+  :root{
+    --ink:#152238;
+    --ink-soft:#3d4a63;
+    --paper:#F5F6F8;
+    --panel:#FFFFFF;
+    --line:#E1E4EA;
+    --accent:#2E6F8E;
+    --accent-soft:#D9EAF1;
+    --valide:#2E7D5B;
+    --valide-soft:#DCEEE5;
+    --rejete:#B94A3C;
+    --rejete-soft:#F7E1DD;
+    --calc:#3B4C87;
+    --calc-soft:#E4E9F5;
+    --display: 'Space Grotesk', 'Segoe UI', sans-serif;
+    --body: 'Inter', 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Consolas', monospace;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    font-family:var(--body);
+    color:var(--ink);
+    min-height:100vh;
+  }
+
+  .layout{
+    max-width:1180px;
+    margin:0 auto;
+    padding:32px 24px 60px;
+    display:grid;
+    grid-template-columns:400px 1fr;
+    gap:24px;
+  }
+  @media (max-width:880px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  /* Mise en page empilée réutilisable (formulaire de traitement posé
+     au-dessus du tableau, comme le module Facebook) : Encaissements,
+     Indexation, Mails. */
+  .stack-layout{
+    max-width:1180px;
+    margin:0 auto;
+    padding:32px 24px 60px;
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+  }
+  .stack-field-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+    gap:6px 20px;
+  }
+  .stack-field-grid .field{
+    margin-bottom:10px;
+  }
+  .field-row-3{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:6px 20px;
+  }
+  @media (max-width:560px){
+    .field-row-3{ grid-template-columns:1fr; }
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:24px;
+  }
+
+  .panel h2{
+    font-family:var(--display);
+    font-size:1rem;
+    font-weight:700;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .panel .sub{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    margin:0 0 20px;
+  }
+
+  .field{
+    margin-bottom:16px;
+  }
+  .field label{
+    display:block;
+    font-size:0.78rem;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  .field input, .field textarea, .field select{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-family:var(--body);
+    font-size:0.92rem;
+    color:var(--ink);
+    background:#fff;
+    transition:border-color .15s;
+  }
+  .field select{
+    cursor:pointer;
+  }
+  .field select:focus{
+    outline:none;
+    border-color:var(--accent);
+  }
+  .field textarea{
+    resize:vertical;
+    min-height:64px;
+    font-family:var(--body);
+  }
+  .field input:focus, .field textarea:focus{
+    outline:none;
+    border-color:var(--accent);
+  }
+  .field input[readonly]{
+    background:var(--paper);
+    color:var(--ink-soft);
+    cursor:default;
+  }
+  .field input[readonly]:focus{
+    border-color:var(--line);
+  }
+
+  .field.calc input{
+    background:var(--calc-soft);
+    color:var(--calc);
+    font-family:var(--mono);
+    font-weight:600;
+    border-color:var(--calc-soft);
+    cursor:default;
+  }
+
+  .toggle-group{
+    margin-bottom:18px;
+  }
+  .toggle-group > label{
+    display:block;
+    font-size:0.78rem;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  .toggle-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .toggle-btn{
+    padding:11px 10px;
+    border:1.5px solid var(--line);
+    border-radius:6px;
+    background:#fff;
+    font-family:var(--body);
+    font-weight:600;
+    font-size:0.86rem;
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:all .12s ease;
+  }
+  .toggle-btn:hover{
+    border-color:var(--accent);
+    color:var(--ink);
+  }
+  .toggle-btn.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+  }
+
+  .submit-btn{
+    width:100%;
+    padding:13px;
+    border:none;
+    border-radius:6px;
+    background:var(--ink);
+    color:#fff;
+    font-family:var(--display);
+    font-weight:600;
+    font-size:0.92rem;
+    letter-spacing:0.02em;
+    cursor:pointer;
+    margin-top:6px;
+    transition:background .15s;
+  }
+  .submit-btn:hover{ background:#243352; }
+
+  .error-msg{
+    font-size:0.8rem;
+    color:var(--rejete);
+    margin-top:10px;
+    display:none;
+  }
+  .error-msg.show{ display:block; }
+
+  /* Ticket list */
+  .list-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .list-head h2{ margin:0; }
+  .export-btn{
+    width:44px;
+    height:44px;
+    padding:0;
+    border:none;
+    border-radius:50%;
+    background:linear-gradient(145deg, #ffffff, #dde3ec);
+    box-shadow:5px 5px 10px rgba(20,30,50,0.18), -5px -5px 10px rgba(255,255,255,0.85);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:all .15s;
+  }
+  .export-btn svg{ width:18px; height:18px; display:block; }
+  .export-btn:hover{
+    color:var(--ink);
+    box-shadow:3px 3px 7px rgba(20,30,50,0.2), -3px -3px 7px rgba(255,255,255,0.9);
+  }
+  .export-btn:active{
+    box-shadow:inset 3px 3px 6px rgba(20,30,50,0.25), inset -3px -3px 6px rgba(255,255,255,0.8);
+  }
+
+  .empty-state{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--ink-soft);
+  }
+  .empty-state .glyph{
+    font-family:var(--mono);
+    font-size:2rem;
+    color:var(--line);
+    margin-bottom:8px;
+  }
+  .empty-state p{ font-size:0.88rem; margin:0; }
+
+  .table-scroll{
+    overflow-x:auto;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:0.82rem;
+  }
+  thead th{
+    text-align:left;
+    font-family:var(--mono);
+    font-size:0.66rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--ink-soft);
+    padding:0 10px 10px;
+    border-bottom:2px solid var(--ink);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:12px 10px;
+    border-bottom:1px solid var(--line);
+    color:var(--ink);
+    vertical-align:middle;
+    white-space:nowrap;
+  }
+  tbody tr:hover{ background:var(--paper); }
+
+  .pill{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:20px;
+    font-size:0.72rem;
+    font-weight:700;
+    font-family:var(--mono);
+  }
+  .pill.zone{ background:#E4E9F5; color:#3B4C87; }
+  .pill.statut{ background:var(--accent-soft); color:var(--accent); }
+
+  .duration{
+    font-family:var(--mono);
+    font-weight:600;
+    color:var(--calc);
+    background:var(--calc-soft);
+    padding:3px 8px;
+    border-radius:5px;
+    font-size:0.78rem;
+  }
+
+  .del-btn{
+    width:34px;
+    height:34px;
+    padding:0;
+    border:none;
+    border-radius:50%;
+    background:linear-gradient(145deg, #ffffff, #dde3ec);
+    box-shadow:4px 4px 8px rgba(20,30,50,0.16), -4px -4px 8px rgba(255,255,255,0.85);
+    color:var(--ink-soft);
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    transition:all .15s;
+  }
+  .del-btn svg{ width:15px; height:15px; display:block; }
+  .del-btn:hover{
+    background:var(--rejete-soft);
+    color:var(--rejete);
+    box-shadow:2px 2px 5px rgba(20,30,50,0.2), -2px -2px 5px rgba(255,255,255,0.9);
+  }
+  .del-btn:active{
+    box-shadow:inset 2px 2px 5px rgba(20,30,50,0.25), inset -2px -2px 5px rgba(255,255,255,0.8);
+  }
+
+  .stub-id{ font-family:var(--mono); color:var(--ink-soft); font-size:0.78rem; }
+
+  /* Stat cards (Traités / Non traités / En cours) */
+  .stats-row{
+    max-width:1180px;
+    margin:24px auto 0;
+    padding:0 24px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+  }
+  @media (max-width:880px){
+    .stats-row{ grid-template-columns:1fr; }
+  }
+  #app-rpi .stat-card{
+    background:var(--panel);
+    border:1.5px solid #152238;
+    border-radius:10px;
+    padding:0 20px 18px;
+    overflow:hidden;
+  }
+  #app-rpi .stat-card .stat-top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin:0 -20px 14px;
+    padding:16px 20px;
+    background:#7B1E3D;
+  }
+  #app-rpi .stat-card .stat-num{
+    font-family:var(--display);
+    font-size:1.7rem;
+    font-weight:800;
+    color:#fff;
+  }
+  #app-rpi .stat-card.statut-traite .stat-num{ color:#fff; }
+  #app-rpi .stat-card.statut-non-traite .stat-num{ color:#fff; }
+  #app-rpi .stat-card.statut-en-cours .stat-num{ color:#fff; }
+  #app-rpi .stat-card .stat-lbl{
+    font-family:var(--mono);
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:#fff;
+    font-weight:700;
+  }
+  .stat-list{
+    list-style:none;
+    margin:0;
+    padding:8px 0 0;
+    max-height:150px;
+    overflow-y:auto;
+    border-top:1px solid var(--line);
+  }
+  .stat-list li{
+    font-size:0.78rem;
+    padding:5px 0;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    color:var(--ink-soft);
+    border-bottom:1px dashed var(--line);
+  }
+  .stat-list li:last-child{ border-bottom:none; }
+  .stat-list li .list-id{
+    font-family:var(--mono);
+    color:var(--ink);
+    font-weight:600;
+  }
+  .stat-list li.list-empty{
+    justify-content:center;
+    color:var(--line);
+    font-style:italic;
+    border-bottom:none;
+  }
+
+  .getnext-btn{
+    padding:8px 14px;
+    border:1.5px solid var(--calc);
+    border-radius:6px;
+    background:var(--calc-soft);
+    font-family:var(--body);
+    font-weight:700;
+    font-size:0.8rem;
+    color:var(--calc);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .getnext-btn:hover{ background:var(--calc); color:#fff; }
+  .getnext-btn:disabled{ opacity:0.6; cursor:default; }
+
+  .lock-banner{
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    background:var(--calc-soft);
+    border:1.5px solid var(--calc);
+    color:var(--calc);
+    border-radius:6px;
+    padding:9px 12px;
+    margin:-6px 0 16px;
+    font-size:0.78rem;
+    font-weight:600;
+  }
+  .lock-banner.show{ display:flex; }
+  .lock-banner .release-btn{
+    border:none;
+    background:none;
+    color:var(--rejete);
+    font-weight:700;
+    font-size:0.76rem;
+    cursor:pointer;
+    text-decoration:underline;
+    white-space:nowrap;
+  }
+
+/* ==========================================================================
+   Styles Guichet VDC (variables scopées à .app-vdc pour ne pas
+   écraser les variables --accent / --valide / --rejete de RPI OI)
+   ========================================================================== */
+  .app-vdc{
+    --ink:#152238;
+    --ink-soft:#3d4a63;
+    --paper:#F5F6F8;
+    --panel:#FFFFFF;
+    --line:#E1E4EA;
+    --accent:#C77D2E;
+    --accent-soft:#F3E3D0;
+    --valide:#2E7D5B;
+    --valide-soft:#DCEEE5;
+    --rejete:#B94A3C;
+    --rejete-soft:#F7E1DD;
+    --calc:#3B4C87;
+    --calc-soft:#E4E9F5;
+    --display: 'Space Grotesk', 'Segoe UI', sans-serif;
+    --body: 'Inter', 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Consolas', monospace;
+  }
+  .field input{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-family:var(--body);
+    font-size:0.92rem;
+    color:var(--ink);
+    background:#fff;
+    transition:border-color .15s;
+  }
+  .field input:focus{
+    outline:none;
+    border-color:var(--accent);
+  }
+  .toggle-btn.active.statut-valide{
+    background:var(--valide);
+    border-color:var(--valide);
+  }
+  .toggle-btn.active.statut-rejete{
+    background:var(--rejete);
+    border-color:var(--rejete);
+  }
+  .pill.type{ background:var(--accent-soft); color:var(--accent); }
+  .pill.valide{ background:var(--valide-soft); color:var(--valide); }
+  .pill.rejete{ background:var(--rejete-soft); color:var(--rejete); }
+  #app-vdc .stat-card{
+    background:var(--panel);
+    border:1.5px solid #152238;
+    border-radius:10px;
+    padding:0 20px 18px;
+    overflow:hidden;
+  }
+  #app-vdc .stat-card .stat-top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin:0 -20px 14px;
+    padding:16px 20px;
+    background:#7B1E3D;
+  }
+  #app-vdc .stat-card .stat-num{
+    font-family:var(--display);
+    font-size:1.7rem;
+    font-weight:800;
+    color:#fff;
+  }
+  #app-vdc .stat-card.statut-traite .stat-num{ color:#fff; }
+  #app-vdc .stat-card.statut-non-traite .stat-num{ color:#fff; }
+  #app-vdc .stat-card.statut-en-cours .stat-num{ color:#fff; }
+  #app-vdc .stat-card .stat-lbl{
+    font-family:var(--mono);
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:#fff;
+    font-weight:700;
+  }
+
+  #app-asp .stat-card{
+    background:var(--panel);
+    border:1.5px solid #152238;
+    border-radius:10px;
+    padding:0 20px 18px;
+    overflow:hidden;
+  }
+  #app-asp .stat-card .stat-top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin:0 -20px 14px;
+    padding:16px 20px;
+    background:#7B1E3D;
+  }
+  #app-asp .stat-card .stat-num{
+    font-family:var(--display);
+    font-size:1.7rem;
+    font-weight:800;
+    color:#fff;
+  }
+  #app-asp .stat-card.statut-traite .stat-num{ color:#fff; }
+  #app-asp .stat-card.statut-non-traite .stat-num{ color:#fff; }
+  #app-asp .stat-card.statut-en-cours .stat-num{ color:#fff; }
+  #app-asp .stat-card .stat-lbl{
+    font-family:var(--mono);
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:#fff;
+    font-weight:700;
+  }
+  #app-asp .stat-card.statut-non-traite .stat-lbl{ color:#F5C842; }
+
+  #app-mails .stat-card{
+    background:var(--panel);
+    border:1.5px solid #152238;
+    border-radius:10px;
+    padding:0 20px 18px;
+    overflow:hidden;
+  }
+  #app-mails .stat-card .stat-top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin:0 -20px 14px;
+    padding:16px 20px;
+    background:#1E6F63;
+  }
+  #app-mails .stat-card .stat-num{
+    font-family:var(--display);
+    font-size:1.7rem;
+    font-weight:800;
+    color:#fff;
+  }
+  #app-mails .stat-card .stat-lbl{
+    font-family:var(--mono);
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:#fff;
+    font-weight:700;
+  }
+  #app-mails .stat-card.statut-en-cours .stat-top{ background:#B94A3C; }
+  #app-mails .pill.backlog-oui{
+    background:var(--rejete-soft);
+    color:var(--rejete);
+  }
+  #app-mails .pill.backlog-non{
+    background:var(--valide-soft);
+    color:var(--valide);
+  }
+
+  #app-asp .stat-list{
+    list-style:none;
+    margin:0;
+    padding:8px 0 0;
+    max-height:150px;
+    overflow-y:auto;
+    border-top:1px solid var(--line);
+  }
+  #app-asp .stat-list li{
+    font-size:0.78rem;
+    padding:5px 0;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    color:var(--ink-soft);
+    border-bottom:1px dashed var(--line);
+  }
+  #app-asp .stat-list li:last-child{ border-bottom:none; }
+  #app-asp .stat-list li .list-id{
+    font-family:var(--mono);
+    color:var(--ink);
+    font-weight:600;
+  }
+  #app-asp .stat-list li.list-empty{
+    justify-content:center;
+    color:var(--line);
+    font-style:italic;
+    border-bottom:none;
+  }
+
+  /* Modale admin (réutilisée par le panneau admin du portail) */
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(21,34,56,0.55);
+    align-items:center;
+    justify-content:center;
+    z-index:1000;
+    padding:20px;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background:#fff;
+    border-radius:12px;
+    width:100%;
+    max-width:520px;
+    max-height:88vh;
+    overflow-y:auto;
+    padding:26px;
+    box-shadow:0 20px 60px rgba(21,34,56,0.35);
+  }
+  .modal-box h3{
+    font-family:var(--display);
+    font-size:1.1rem;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .modal-box .modal-sub{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    margin:0 0 20px;
+  }
+  .modal-box .modal-close{
+    float:right;
+    border:none;
+    background:none;
+    font-size:1.3rem;
+    color:var(--ink-soft);
+    cursor:pointer;
+    line-height:1;
+  }
+  .modal-box .field input{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.92rem;
+  }
+  .admin-err{
+    font-size:0.8rem;
+    color:var(--rejete);
+    margin-top:8px;
+    display:none;
+  }
+  .admin-err.show{ display:block; }
+  .admin-save-btn{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:6px;
+    background:var(--ink);
+    color:#fff;
+    font-family:var(--display);
+    font-weight:600;
+    font-size:0.9rem;
+    cursor:pointer;
+    margin-top:18px;
+  }
+  .admin-save-btn:hover{ background:#243352; }
+
+  /* Écran de connexion obligatoire (accès agents) */
+  .agent-login-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:var(--ink);
+    align-items:center;
+    justify-content:center;
+    z-index:5000;
+    padding:20px;
+  }
+  .agent-login-overlay.show{ display:flex; }
+  .agent-login-box{
+    background:#fff;
+    border-radius:12px;
+    width:100%;
+    max-width:380px;
+    padding:32px 28px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  }
+  .agent-login-box .brand{
+    font-family:var(--display);
+    font-size:1.15rem;
+    font-weight:700;
+    color:var(--ink);
+    margin:0 0 4px;
+  }
+  .agent-login-box .sub{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    margin:0 0 22px;
+  }
+  .agent-login-box .field{
+    margin-bottom:14px;
+  }
+  .agent-login-box .field label{
+    display:block;
+    font-size:0.78rem;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  .agent-login-box .field input{
+    width:100%;
+    padding:11px 12px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-family:var(--body);
+    font-size:0.92rem;
+    color:var(--ink);
+  }
+  .agent-login-box .field input:focus{
+    outline:none;
+    border-color:var(--accent);
+  }
+  .agent-login-box .login-err{
+    font-size:0.8rem;
+    color:var(--rejete);
+    margin:2px 0 0;
+    display:none;
+  }
+  .agent-login-box .login-err.show{ display:block; }
+  .agent-login-box .login-submit{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:6px;
+    background:var(--ink);
+    color:#fff;
+    font-family:var(--display);
+    font-weight:600;
+    font-size:0.92rem;
+    cursor:pointer;
+    margin-top:16px;
+  }
+  .agent-login-box .login-submit:hover{ background:#243352; }
+  .nav-btn.logout-btn{
+    background:rgba(185,74,60,0.18);
+    border-color:rgba(185,74,60,0.4);
+  }
+  .nav-btn.logout-btn:hover{ border-color:#B94A3C; color:#fff; }
+  .session-label{
+    font-family:var(--body);
+    font-size:0.82rem;
+    color:#c8d1e0;
+    white-space:nowrap;
+  }
+  .session-label b{ color:#fff; }
+
+
+/* ==========================================================================
+   Portail — barre de navigation + bascule entre les deux apps
+   ========================================================================== */
+.portal-nav{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 24px;
+  background:var(--ink);
+  flex-wrap:wrap;
+  position:sticky;
+  top:0;
+  z-index:1000;
+}
+.portal-nav .brand{
+  font-family:var(--display);
+  color:#fff;
+  font-size:1.05rem;
+  margin-right:14px;
+  white-space:nowrap;
+}
+.portal-nav .nav-btn{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 16px;
+  border-radius:8px;
+  border:1.5px solid rgba(255,255,255,0.18);
+  background:rgba(255,255,255,0.06);
+  color:#c8d1e0;
+  font-family:var(--body);
+  font-weight:600;
+  font-size:0.88rem;
+  cursor:pointer;
+  transition:all .15s;
+}
+.portal-nav .nav-btn:hover{
+  border-color:rgba(255,255,255,0.4);
+  color:#fff;
+}
+.portal-nav .nav-btn .dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:currentColor;
+  opacity:0.5;
+}
+.portal-nav .nav-btn.active .dot{ opacity:1; }
+.portal-nav .nav-btn.active#portalBtnRpi{ background:#2E6F8E; border-color:#2E6F8E; color:#fff; }
+.portal-nav .nav-btn.active#portalBtnVdc{ background:#C77D2E; border-color:#C77D2E; color:#fff; }
+.portal-nav .nav-btn.active#portalBtnAsp{ background:#7A4FA3; border-color:#7A4FA3; color:#fff; }
+.portal-nav .nav-btn.active#portalBtnFacebook{ background:#1877F2; border-color:#1877F2; color:#fff; }
+.portal-nav .nav-btn.active#portalBtnIndexation{ background:#B9762E; border-color:#B9762E; color:#fff; }
+.portal-nav .nav-btn.active#portalBtnMails{ background:#1E6F63; border-color:#1E6F63; color:#fff; }
+.portal-nav .nav-btn.active#portalBtnImpayes{ background:#2E7D5B; border-color:#2E7D5B; color:#fff; }
+.portal-nav .spacer{ flex:1; }
+.portal-nav .admin-btn{
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,0.25);
+  background:rgba(255,255,255,0.08);
+  color:#9fb0cc;
+  font-size:1.05rem;
+  cursor:pointer;
+  transition:all .15s;
+}
+.portal-nav .admin-btn:hover{
+  color:#fff;
+  border-color:rgba(255,255,255,0.5);
+  transform:rotate(45deg);
+}
+.app-pane{ display:none; }
+.app-pane.active{ display:block; }
+.portal-hint{
+  font-size:0.78rem;
+  color:var(--ink-soft);
+  margin:2px 0 16px;
+}
+
+/* ==========================================================================
+   Module FACEBOOK — module indépendant, totalement séparé (pas de lien
+   avec RPI/VDC/ASP). Toutes les règles ci-dessous sont scopées sous
+   .app-facebook.
+   ========================================================================== */
+.app-facebook{
+  --fb-accent:#1877F2;
+  --fb-accent-soft:#EAF1FE;
+  --fb-red:#E0473E;
+  --fb-valide:#2E9E5B;
+}
+.facebook-wrap{
+  max-width:1180px;
+  margin:0 auto;
+  padding:32px 24px 60px;
+}
+.facebook-card{
+  background:linear-gradient(180deg, var(--fb-accent-soft) 0%, #F5F9FF 100%);
+  border:1px solid #D3E1FB;
+  border-top:3px solid var(--fb-accent);
+  border-radius:14px;
+  padding:24px 28px 26px;
+  box-shadow:0 8px 24px rgba(24,119,242,0.10);
+}
+.facebook-card-header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:22px;
+}
+.facebook-icon{
+  width:30px;
+  height:30px;
+  border-radius:8px;
+  background:var(--fb-accent);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:var(--display);
+  font-weight:700;
+  font-size:1rem;
+}
+.facebook-card-header h2{
+  font-family:var(--display);
+  font-size:1.1rem;
+  font-weight:700;
+  margin:0;
+  color:var(--ink);
+  letter-spacing:0.02em;
+}
+.facebook-grid-row{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:20px;
+  margin-bottom:18px;
+}
+@media (max-width:760px){
+  .facebook-grid-row{ grid-template-columns:1fr; }
+}
+.facebook-field label{
+  display:block;
+  font-size:0.7rem;
+  font-weight:700;
+  color:var(--ink-soft);
+  margin-bottom:6px;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+}
+.facebook-field label .req{ color:var(--fb-red); }
+.facebook-field input, .facebook-field select{
+  width:100%;
+  padding:10px 12px;
+  border:1px solid #D3E1FB;
+  border-radius:7px;
+  font-family:var(--body);
+  font-size:0.9rem;
+  color:var(--ink);
+  background:#fff;
+}
+.facebook-field input:focus, .facebook-field select:focus{
+  outline:none;
+  border-color:var(--fb-accent);
+}
+.facebook-field input[readonly]{
+  background:#F5F9FF;
+  color:var(--ink-soft);
+  cursor:default;
+}
+.facebook-field input.facebook-dmt-chip{
+  background:var(--fb-accent-soft);
+  color:var(--fb-accent);
+  font-family:var(--mono);
+  font-weight:700;
+  text-align:center;
+  border-color:#C7D9FA;
+}
+.facebook-bottom-row{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  margin-top:4px;
+}
+.facebook-valide-btn{
+  padding:12px 22px;
+  border:none;
+  border-radius:8px;
+  background:var(--fb-valide);
+  color:#fff;
+  font-family:var(--display);
+  font-weight:700;
+  font-size:0.9rem;
+  letter-spacing:0.02em;
+  cursor:pointer;
+  transition:background .15s;
+}
+.facebook-valide-btn:hover{ background:#257A47; }
+.facebook-error-msg{
+  font-size:0.8rem;
+  color:var(--fb-red);
+  margin-top:14px;
+  display:none;
+}
+.facebook-error-msg.show{ display:block; }
+.facebook-reception-row{
+  display:flex;
+  gap:8px;
+  align-items:stretch;
+}
+.facebook-reception-row input{ flex:1; }
+.facebook-reception-row input.facebook-confirmed{
+  background:#F5F9FF;
+  color:var(--ink-soft);
+  border-color:#B9DDC4;
+}
+.facebook-confirm-btn{
+  flex:0 0 auto;
+  width:40px;
+  border:1.5px solid var(--fb-accent);
+  border-radius:7px;
+  background:#fff;
+  color:var(--fb-accent);
+  font-weight:800;
+  font-size:1rem;
+  cursor:pointer;
+  transition:all .12s ease;
+}
+.facebook-confirm-btn:hover{ background:var(--fb-accent); color:#fff; }
+.facebook-confirm-btn.is-edit{
+  border-color:var(--ink-soft);
+  color:var(--ink-soft);
+  font-size:0.85rem;
+}
+.facebook-field-hint{
+  font-size:0.72rem;
+  color:var(--ink-soft);
+  margin-top:5px;
+}
+.facebook-field-error{
+  font-size:0.72rem;
+  color:var(--fb-red);
+  margin-top:5px;
+  display:none;
+}
+.facebook-field-error.show{ display:block; }
+.facebook-history-panel{ margin-top:24px; }
+</style>
+</head>
+<body>
+
+<!-- ÉCRAN DE CONNEXION OBLIGATOIRE — accès agents (nom + mot de passe individuel) -->
+<div class="agent-login-overlay show" id="agentLoginOverlay">
+  <div class="agent-login-box">
+    <p class="brand">Portail Agent</p>
+    <p class="sub">Connectez-vous avec votre nom et votre mot de passe pour accéder au portail.</p>
+    <div class="field">
+      <label for="agentLoginName">Nom d'agent</label>
+      <input type="text" id="agentLoginName" placeholder="Votre nom" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="agentLoginPassword">Mot de passe</label>
+      <input type="password" id="agentLoginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <p class="login-err" id="agentLoginErr">Nom d'agent ou mot de passe incorrect.</p>
+    <p class="login-err" id="agentLoginSyncErr">Impossible de récupérer la liste des agents (Gsheet). Vérifiez la connexion ou l'URL configurée par l'admin.</p>
+    <p class="sub" id="agentLoginLoading" style="margin:4px 0 14px;">Chargement de la liste des agents…</p>
+    <button type="button" class="login-submit" id="agentLoginSubmit" disabled>Se connecter</button>
+  </div>
+</div>
+
+<nav class="portal-nav">
+  <button type="button" class="nav-btn active" id="portalBtnRpi" onclick="showApp('rpi')">
+    <span class="dot"></span> RPI OI
+  </button>
+  <button type="button" class="nav-btn" id="portalBtnVdc" onclick="showApp('vdc')">
+    <span class="dot"></span> Guichet VDC
+  </button>
+  <button type="button" class="nav-btn" id="portalBtnAsp" onclick="showApp('asp')">
+    <span class="dot"></span> ASP OI
+  </button>
+  <button type="button" class="nav-btn" id="portalBtnFacebook" onclick="showApp('facebook')">
+    <span class="dot"></span> Facebook
+  </button>
+  <button type="button" class="nav-btn" id="portalBtnIndexation" onclick="showApp('indexation')">
+    <span class="dot"></span> Indexation
+  </button>
+  <button type="button" class="nav-btn" id="portalBtnMails" onclick="showApp('mails')">
+    <span class="dot"></span> Mails
+  </button>
+  <button type="button" class="nav-btn" id="portalBtnImpayes" onclick="showApp('impayes')">
+    <span class="dot"></span> Encaissements
+  </button>
+  <span class="spacer"></span>
+  <span class="session-label" id="agentSessionLabel"></span>
+  <button type="button" class="nav-btn logout-btn" id="agentLogoutBtn" title="Se déconnecter">⎋ Déconnexion</button>
+  <button type="button" class="admin-btn" id="portalAdminBtn" title="Administration des URL" onclick="openPortalAdminAuth()">⚙</button>
+</nav>
+
+<div id="app-rpi" class="app-pane active">
+
+<div class="stats-row">
+  <div class="stat-card statut-traite">
+    <div class="stat-top">
+      <div class="stat-num" id="countTraites">000</div>
+      <div class="stat-lbl">Traités</div>
+    </div>
+    <ul class="stat-list" id="listTraites"><li class="list-empty">Aucun</li></ul>
+  </div>
+  <div class="stat-card statut-non-traite">
+    <div class="stat-top">
+      <div class="stat-num" id="countNonTraites">000</div>
+      <div class="stat-lbl">Non traités</div>
+    </div>
+    <ul class="stat-list" id="listNonTraites"><li class="list-empty">Aucun</li></ul>
+  </div>
+  <div class="stat-card statut-en-cours">
+    <div class="stat-top">
+      <div class="stat-num" id="countEnCours">000</div>
+      <div class="stat-lbl">En cours</div>
+    </div>
+    <ul class="stat-list" id="listEnCours"><li class="list-empty">Aucun</li></ul>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- FORM PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>RAPPEL POUR IMPAYE</h2>
+      <button type="button" class="getnext-btn" id="getNextBtn">⇩ GETNEXT</button>
+    </div>
+    <div class="lock-banner" id="lockBanner">
+      <span id="lockBannerText">🔒 Ticket verrouillé pour vous</span>
+      <button type="button" class="release-btn" id="releaseBtn">Libérer ce ticket</button>
+    </div>
+
+    <form id="ticketForm">
+      <div class="field">
+        <label for="dateReception">Réception S2</label>
+        <input type="datetime-local" id="dateReception" step="1" readonly required>
+      </div>
+
+      <div class="field">
+        <label for="dateTraitement">Début Traitement</label>
+        <input type="datetime-local" id="dateTraitement" step="1" required>
+      </div>
+
+      <div class="field">
+        <label for="idActivite">ID Activité</label>
+        <input type="text" id="idActivite" readonly required>
+      </div>
+
+      <div class="field">
+        <label for="nomClient">Nom Client</label>
+        <input type="text" id="nomClient" placeholder="Nom du client" readonly required>
+      </div>
+
+      <div class="field">
+        <label for="contact">Contact</label>
+        <input type="text" id="contact" placeholder="Numéro / e-mail de contact">
+      </div>
+
+      <div class="field">
+        <label for="montant">Montant</label>
+        <input type="number" id="montant" step="0.01" placeholder="0.00">
+      </div>
+
+      <div class="toggle-group">
+        <label>Zone</label>
+        <div class="toggle-row" data-group="zone">
+          <button type="button" class="toggle-btn" data-value="RUN">RUN</button>
+          <button type="button" class="toggle-btn" data-value="MAY">MAY</button>
+        </div>
+      </div>
+
+      <div class="toggle-group">
+        <label>Paiement</label>
+        <div class="toggle-row" data-group="paiement">
+          <button type="button" class="toggle-btn" data-value="OK">OK</button>
+          <button type="button" class="toggle-btn" data-value="NOK">NOK</button>
+        </div>
+      </div>
+
+      <div class="toggle-group">
+        <label>Mode de Règlement</label>
+        <div class="toggle-row" data-group="modeReglement">
+          <button type="button" class="toggle-btn" data-value="Carte">Carte</button>
+          <button type="button" class="toggle-btn" data-value="Especes">Espèces</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="etatAppels">Etat d'appels</label>
+        <select id="etatAppels">
+          <option value="">Sélectionner...</option>
+          <option value="Abouti">Abouti</option>
+          <option value="Non Abouti">Non Abouti</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="statuts">Statuts</label>
+        <select id="statuts" required>
+          <option value="">Sélectionner d'abord l'Etat d'appels...</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="commentaires">Commentaires</label>
+        <textarea id="commentaires" placeholder="Notes libres"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="dateFinTraitement">Fin Traitement</label>
+        <input type="datetime-local" id="dateFinTraitement" step="1" readonly required>
+      </div>
+
+      <div class="field calc">
+        <label for="dmt">DMT — hh:mm:ss (fin − début)</label>
+        <input type="text" id="dmt" value="00:00:00" readonly>
+      </div>
+
+      <div class="field calc">
+        <label for="dmpc">DMPC (début traitement − réception S2)</label>
+        <input type="text" id="dmpc" value="00:00:00" readonly>
+      </div>
+
+      <button type="submit" class="submit-btn">Enregistrer le ticket</button>
+      <p class="error-msg" id="errorMsg">Veuillez remplir tous les champs obligatoires (Agent, Nom Client, Zone, Statuts...).</p>
+    </form>
+  </div>
+
+  <!-- LIST PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>Tickets traités</h2>
+      <button class="export-btn" id="exportBtn" title="Exporter en CSV" aria-label="Exporter en CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"></path>
+          <path d="M7 10l5 5 5-5"></path>
+          <path d="M5 19h14"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      <div class="glyph">⌸</div>
+      <p>Aucun ticket enregistré pour le moment.</p>
+    </div>
+
+    <div class="table-scroll">
+      <table id="ticketTable" style="display:none;">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Nom Client</th>
+            <th>Réception S2</th>
+            <th>Début Traitement</th>
+            <th>ID Activité</th>
+            <th>Contact</th>
+            <th>Montant</th>
+            <th>Zone</th>
+            <th>Paiement</th>
+            <th>Mode de Règlement</th>
+            <th>Etat d'appels</th>
+            <th>Statuts</th>
+            <th>Commentaires</th>
+            <th>Fin Traitement</th>
+            <th>DMT (hh:mm:ss)</th>
+            <th>DMPC</th>
+            <th>Agent</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ticketBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+
+</div>
+
+<div id="app-vdc" class="app-pane app-vdc">
+
+<div class="stats-row">
+  <div class="stat-card statut-traite">
+    <div class="stat-top">
+      <div class="stat-num" id="vdc-countTraites">000</div>
+      <div class="stat-lbl">Traités</div>
+    </div>
+    <ul class="stat-list" id="vdc-listTraites"><li class="list-empty">Aucun</li></ul>
+  </div>
+  <div class="stat-card statut-non-traite">
+    <div class="stat-top">
+      <div class="stat-num" id="vdc-countNonTraites">000</div>
+      <div class="stat-lbl">Non traités</div>
+    </div>
+    <ul class="stat-list" id="vdc-listNonTraites"><li class="list-empty">Aucun</li></ul>
+  </div>
+  <div class="stat-card statut-en-cours">
+    <div class="stat-top">
+      <div class="stat-num" id="vdc-countEnCours">000</div>
+      <div class="stat-lbl">En cours</div>
+    </div>
+    <ul class="stat-list" id="vdc-listEnCours"><li class="list-empty">Aucun</li></ul>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- FORM PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>VALIDATION DE COMMANDE</h2>
+      <button type="button" class="getnext-btn" id="vdc-getNextBtn">⇩ GETNEXT</button>
+    </div>
+    <div class="lock-banner" id="vdc-lockBanner">
+      <span id="vdc-lockBannerText">🔒 Ticket verrouillé pour vous</span>
+      <button type="button" class="release-btn" id="vdc-releaseBtn">Libérer ce ticket</button>
+    </div>
+
+    <form id="vdc-ticketForm">
+      <div class="field">
+        <label for="vdc-dateReception">Date de réception S2</label>
+        <input type="datetime-local" id="vdc-dateReception" step="1" readonly required>
+      </div>
+
+      <div class="field">
+        <label for="vdc-dateTraitement">Date début de traitement</label>
+        <input type="datetime-local" id="vdc-dateTraitement" step="1" required>
+      </div>
+
+      <div class="field">
+        <label for="vdc-idActivite">ID Activités</label>
+        <input type="text" id="vdc-idActivite" readonly required>
+      </div>
+
+      <div class="field">
+        <label for="boutique">Boutique</label>
+        <input type="text" id="boutique" readonly required>
+      </div>
+
+      <div class="toggle-group">
+        <label>Type</label>
+        <div class="toggle-row" data-group="type">
+          <button type="button" class="toggle-btn" data-value="ABO">ABO</button>
+          <button type="button" class="toggle-btn" data-value="CARTE">CARTE</button>
+        </div>
+      </div>
+
+      <div class="toggle-group">
+        <label>Zone</label>
+        <div class="toggle-row" data-group="zone">
+          <button type="button" class="toggle-btn" data-value="RUN">RUN</button>
+          <button type="button" class="toggle-btn" data-value="MAY">MAY</button>
+        </div>
+      </div>
+
+      <div class="toggle-group">
+        <label>Statut</label>
+        <div class="toggle-row" data-group="statut">
+          <button type="button" class="toggle-btn" data-value="VALIDE">VALIDE</button>
+          <button type="button" class="toggle-btn" data-value="REJETE">REJETE</button>
+        </div>
+      </div>
+
+      <div class="field" id="motifField" style="display:none;">
+        <label for="motifRejet">Motif du rejet</label>
+        <input type="text" id="motifRejet" placeholder="Préciser la raison du rejet">
+      </div>
+
+      <div class="field">
+        <label for="vdc-dateFinTraitement">Date fin de traitement</label>
+        <input type="datetime-local" id="vdc-dateFinTraitement" step="1" readonly required>
+      </div>
+
+      <div class="field calc">
+        <label for="vdc-dmt">DMT (fin − début traitement)</label>
+        <input type="text" id="vdc-dmt" value="00:00:00" readonly>
+      </div>
+
+      <div class="field calc">
+        <label for="vdc-dmpc">DMPC (début traitement − réception S2)</label>
+        <input type="text" id="vdc-dmpc" value="00:00:00" readonly>
+      </div>
+
+      <button type="submit" class="submit-btn">Enregistrer le ticket</button>
+      <p class="error-msg" id="vdc-errorMsg">Veuillez remplir tous les champs, sélectionner Type, Zone, Statut, et préciser le motif si le ticket est rejeté.</p>
+    </form>
+  </div>
+
+  <!-- LIST PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>Tickets traités</h2>
+      <button class="export-btn" id="vdc-exportBtn" title="Exporter en CSV" aria-label="Exporter en CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"></path>
+          <path d="M7 10l5 5 5-5"></path>
+          <path d="M5 19h14"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div id="vdc-emptyState" class="empty-state">
+      <div class="glyph">⌸</div>
+      <p>Aucun ticket enregistré pour le moment.</p>
+    </div>
+
+    <div class="table-scroll">
+      <table id="vdc-ticketTable" style="display:none;">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Agent</th>
+            <th>Date de réception S2</th>
+            <th>Date début de traitement</th>
+            <th>Date fin de traitement</th>
+            <th>DMT</th>
+            <th>DMPC</th>
+            <th>ID Activités</th>
+            <th>Boutique</th>
+            <th>Type</th>
+            <th>Zone</th>
+            <th>Statut</th>
+            <th>Motif rejet</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="vdc-ticketBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+
+</div>
+
+<div id="app-asp" class="app-pane">
+
+<div class="stats-row">
+  <div class="stat-card statut-traite">
+    <div class="stat-top">
+      <div class="stat-num" id="asp-countTraites">000</div>
+      <div class="stat-lbl">Traités</div>
+    </div>
+    <ul class="stat-list" id="asp-listTraites"><li class="list-empty">Aucun</li></ul>
+  </div>
+  <div class="stat-card statut-non-traite">
+    <div class="stat-top">
+      <div class="stat-num" id="asp-countNonTraites">000</div>
+      <div class="stat-lbl">Non traités</div>
+    </div>
+    <ul class="stat-list" id="asp-listNonTraites"><li class="list-empty">Aucun</li></ul>
+  </div>
+  <div class="stat-card statut-en-cours">
+    <div class="stat-top">
+      <div class="stat-num" id="asp-countEnCours">000</div>
+      <div class="stat-lbl">En cours</div>
+    </div>
+    <ul class="stat-list" id="asp-listEnCours"><li class="list-empty">Aucun</li></ul>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- FORM PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>APPEL SORTANT PAIEMENT</h2>
+      <button type="button" class="getnext-btn" id="asp-getNextBtn">⇩ GETNEXT</button>
+    </div>
+    <div class="lock-banner" id="asp-lockBanner">
+      <span id="asp-lockBannerText">🔒 Ticket verrouillé pour vous</span>
+      <button type="button" class="release-btn" id="asp-releaseBtn">Libérer ce ticket</button>
+    </div>
+
+    <form id="asp-ticketForm">
+      <div class="field">
+        <label for="asp-dateReception">Réception S2</label>
+        <input type="datetime-local" id="asp-dateReception" step="1" readonly required>
+      </div>
+
+      <div class="field">
+        <label for="asp-dateTraitement">Début Traitement</label>
+        <input type="datetime-local" id="asp-dateTraitement" step="1" required>
+      </div>
+
+      <div class="field">
+        <label for="asp-idActivite">ID Activité</label>
+        <input type="text" id="asp-idActivite" readonly required>
+      </div>
+
+      <div class="field">
+        <label for="asp-nomClient">Nom Client</label>
+        <input type="text" id="asp-nomClient" placeholder="Nom du client" readonly required>
+      </div>
+
+      <div class="field">
+        <label for="asp-contact">Contact</label>
+        <input type="text" id="asp-contact" placeholder="Numéro / e-mail de contact">
+      </div>
+
+      <div class="field">
+        <label for="asp-montant">Montant</label>
+        <input type="number" id="asp-montant" step="0.01" placeholder="0.00">
+      </div>
+
+      <div class="toggle-group">
+        <label>Zone</label>
+        <div class="toggle-row" data-group="zone">
+          <button type="button" class="toggle-btn" data-value="RUN">RUN</button>
+          <button type="button" class="toggle-btn" data-value="MAY">MAY</button>
+        </div>
+      </div>
+
+      <div class="toggle-group">
+        <label>Paiement</label>
+        <div class="toggle-row" data-group="paiement">
+          <button type="button" class="toggle-btn" data-value="OK">OK</button>
+          <button type="button" class="toggle-btn" data-value="NOK">NOK</button>
+        </div>
+      </div>
+
+      <div class="toggle-group">
+        <label>Mode de Règlement</label>
+        <div class="toggle-row" data-group="modeReglement">
+          <button type="button" class="toggle-btn" data-value="Carte">Carte</button>
+          <button type="button" class="toggle-btn" data-value="Especes">Espèces</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="asp-etatAppels">Etat d'appels</label>
+        <select id="asp-etatAppels">
+          <option value="">Sélectionner...</option>
+          <option value="Abouti">Abouti</option>
+          <option value="Non Abouti">Non Abouti</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="asp-statuts">Statuts</label>
+        <select id="asp-statuts" required>
+          <option value="">Sélectionner d'abord l'Etat d'appels...</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="asp-commentaires">Commentaires</label>
+        <textarea id="asp-commentaires" placeholder="Notes libres"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="asp-dateFinTraitement">Fin Traitement</label>
+        <input type="datetime-local" id="asp-dateFinTraitement" step="1" readonly required>
+      </div>
+
+      <div class="field calc">
+        <label for="asp-dmt">DMT — hh:mm:ss (fin − début)</label>
+        <input type="text" id="asp-dmt" value="00:00:00" readonly>
+      </div>
+
+      <div class="field calc">
+        <label for="asp-dmpc">DMPC (début traitement − réception S2)</label>
+        <input type="text" id="asp-dmpc" value="00:00:00" readonly>
+      </div>
+
+      <button type="submit" class="submit-btn">Enregistrer le ticket</button>
+      <p class="error-msg" id="asp-errorMsg">Veuillez remplir tous les champs obligatoires (Agent, Nom Client, Zone, Statuts...).</p>
+    </form>
+  </div>
+
+  <!-- LIST PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>Tickets traités</h2>
+      <button class="export-btn" id="asp-exportBtn" title="Exporter en CSV" aria-label="Exporter en CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"></path>
+          <path d="M7 10l5 5 5-5"></path>
+          <path d="M5 19h14"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div id="asp-emptyState" class="empty-state">
+      <div class="glyph">⌸</div>
+      <p>Aucun ticket enregistré pour le moment.</p>
+    </div>
+
+    <div class="table-scroll">
+      <table id="asp-ticketTable" style="display:none;">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Nom Client</th>
+            <th>Réception S2</th>
+            <th>Début Traitement</th>
+            <th>ID Activité</th>
+            <th>Contact</th>
+            <th>Montant</th>
+            <th>Zone</th>
+            <th>Paiement</th>
+            <th>Mode de Règlement</th>
+            <th>Etat d'appels</th>
+            <th>Statuts</th>
+            <th>Commentaires</th>
+            <th>Fin Traitement</th>
+            <th>DMT (hh:mm:ss)</th>
+            <th>DMPC</th>
+            <th>Agent</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="asp-ticketBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+
+<!-- ==========================================================================
+     Module FACEBOOK — module indépendant (carte de saisie + historique),
+     aucun lien avec les autres modules : stockage, URL Apps Script et
+     logique JS entièrement séparés.
+     ========================================================================== -->
+<div id="app-facebook" class="app-pane app-facebook">
+<div class="facebook-wrap">
+
+  <div class="facebook-card">
+    <div class="facebook-card-header">
+      <span class="facebook-icon">F</span>
+      <h2>FACEBOOK</h2>
+    </div>
+
+    <div class="facebook-grid-row">
+      <div class="facebook-field">
+        <label for="facebookDateReception">Date et heure de réception <span class="req">*</span></label>
+        <div class="facebook-reception-row">
+          <input type="text" id="facebookDateReception" placeholder="jj/mm/aaaa hh:mm:ss" maxlength="19" autocomplete="off" required>
+          <button type="button" class="facebook-confirm-btn" id="facebookReceptionConfirmBtn" title="Confirmer">✓</button>
+        </div>
+        <p class="facebook-field-hint">Format obligatoire : jj/mm/aaaa hh:mm:ss</p>
+        <p class="facebook-field-error" id="facebookReceptionError">Format invalide ou date de réception non antérieure à la date début de traitement.</p>
+      </div>
+      <div class="facebook-field">
+        <label for="facebookComptes">Comptes <span class="req">*</span></label>
+        <select id="facebookComptes" required>
+          <option value="">Sélectionner...</option>
+          <option value="RUN">RUN</option>
+          <option value="MAY">MAY</option>
+        </select>
+      </div>
+      <div class="facebook-field">
+        <label for="facebookIdZendesk">ID Zendesk <span class="req">*</span></label>
+        <input type="text" id="facebookIdZendesk" placeholder="Ex : ZD-2026-00123" required>
+      </div>
+    </div>
+
+    <div class="facebook-grid-row">
+      <div class="facebook-field">
+        <label for="facebookDemande">Demande <span class="req">*</span></label>
+        <input type="text" id="facebookDemande" placeholder="Objet de la demande" required>
+      </div>
+      <div class="facebook-field">
+        <label for="facebookMpRecus">MP reçus <span class="req">*</span></label>
+        <input type="number" id="facebookMpRecus" min="0" step="1" placeholder="0" required>
+      </div>
+      <div class="facebook-field">
+        <label for="facebookMpTraites">MP traités <span class="req">*</span></label>
+        <input type="number" id="facebookMpTraites" min="0" step="1" placeholder="0" required>
+      </div>
+    </div>
+
+    <div class="facebook-grid-row">
+      <div class="facebook-field">
+        <label for="facebookDateDebut">Date début de traitement</label>
+        <input type="text" id="facebookDateDebut" readonly placeholder="—" value="—">
+      </div>
+      <div class="facebook-field">
+        <label for="facebookDmpc">DMPC</label>
+        <input type="text" id="facebookDmpc" readonly value="—">
+      </div>
+      <div class="facebook-field">
+        <label for="facebookDmt">DMT</label>
+        <input type="text" id="facebookDmt" readonly class="facebook-dmt-chip" value="00:00:00">
+      </div>
+    </div>
+
+    <div class="facebook-bottom-row">
+      <button type="button" class="facebook-valide-btn" id="facebookSubmitBtn">✓ VALIDE</button>
+    </div>
+
+    <p class="facebook-error-msg" id="facebookErrorMsg">Veuillez remplir tous les champs obligatoires : confirmer la Date et heure de réception (jj/mm/aaaa hh:mm:ss), Comptes, ID Zendesk, Demande, MP reçus, MP traités.</p>
+  </div>
+
+  <div class="panel facebook-history-panel">
+    <div class="list-head">
+      <h2>Historique — Facebook</h2>
+      <button type="button" class="export-btn" id="facebookExportBtn" title="Exporter en CSV">⭳</button>
+    </div>
+    <div class="table-scroll">
+      <table id="facebookTable" style="display:none;">
+        <thead>
+          <tr>
+            <th>Date et heure de réception</th>
+            <th>Date début de traitement</th>
+            <th>Comptes</th>
+            <th>ID Zendesk</th>
+            <th>Demande</th>
+            <th>MP reçus</th>
+            <th>MP traités</th>
+            <th>Date fin de traitement</th>
+            <th>DMPC</th>
+            <th>DMT</th>
+            <th>Backlog</th>
+            <th>Agent</th>
+          </tr>
+        </thead>
+        <tbody id="facebookTableBody"></tbody>
+      </table>
+      <p id="facebookEmptyState" style="font-size:0.85rem;color:var(--ink-soft);">Aucune entrée Facebook pour l'instant.</p>
+    </div>
+  </div>
+
+</div>
+</div>
+
+
+<!-- ==========================================================================
+     Module INDEXATION — saisie manuelle. La Date de réception est saisie par
+     l'agent (toujours antérieure à la Date de traitement, qui se remplit
+     automatiquement dès que la réception est renseignée). Reçu = Traité OK +
+     Traité NOK (calcul auto). DMT et DMPC sont calculés à l'enregistrement à
+     partir de la Fin de traitement. Fait partie du gscode fusionné : utilise
+     l'URL unique du portail, distingué côté serveur via "module=indexation".
+     ========================================================================== -->
+<div id="app-indexation" class="app-pane">
+
+<div class="stack-layout">
+
+  <!-- FORM PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>INDEXATION</h2>
+    </div>
+
+    <form id="idx-entryForm">
+      <div class="stack-field-grid">
+        <div class="field">
+          <label for="idx-dateReception">Date de réception</label>
+          <input type="text" id="idx-dateReception" placeholder="jj/mm/aaaa hh:mm:ss" inputmode="numeric" autocomplete="off" required>
+        </div>
+
+        <div class="field">
+          <label for="idx-dateTraitement">Date de traitement</label>
+          <input type="datetime-local" id="idx-dateTraitement" step="1" readonly required>
+        </div>
+
+        <div class="field">
+          <label for="idx-types">Types</label>
+          <select id="idx-types" required>
+            <option value="">Sélectionner...</option>
+            <option value="Résiliation">Résiliation</option>
+            <option value="NPAI">NPAI</option>
+            <option value="AR">AR</option>
+            <option value="Inconnu">Inconnu</option>
+            <option value="Réclamation">Réclamation</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="idx-traiteOk">Traité OK</label>
+          <input type="number" id="idx-traiteOk" min="0" step="1" placeholder="0" inputmode="numeric">
+        </div>
+
+        <div class="field">
+          <label for="idx-traiteNok">Traité NOK</label>
+          <input type="number" id="idx-traiteNok" min="0" step="1" placeholder="0" inputmode="numeric">
+        </div>
+
+        <div class="field calc">
+          <label for="idx-recu">Reçu</label>
+          <input type="text" id="idx-recu" value="0" readonly>
+        </div>
+
+        <div class="toggle-group" style="margin-bottom:0;">
+          <label>Comptes</label>
+          <div class="toggle-row" data-group="comptes">
+            <button type="button" class="toggle-btn" data-value="RUN">RUN</button>
+            <button type="button" class="toggle-btn" data-value="MAY">MAY</button>
+          </div>
+        </div>
+
+        <div class="field" style="grid-column:span 2;">
+          <label for="idx-motif">Motif</label>
+          <textarea id="idx-motif" placeholder="Notes libres (facultatif)"></textarea>
+        </div>
+
+        <div class="field-row-3" style="grid-column:1/-1;">
+          <div class="field">
+            <label for="idx-dateFinTraitement">Fin de traitement</label>
+            <input type="datetime-local" id="idx-dateFinTraitement" step="1" readonly required>
+          </div>
+
+          <div class="field calc">
+            <label for="idx-dmt">DMT</label>
+            <input type="text" id="idx-dmt" value="00:00:00" readonly>
+          </div>
+
+          <div class="field calc">
+            <label for="idx-dmpc">DMPC</label>
+            <input type="text" id="idx-dmpc" value="00:00:00" readonly>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn">Enregistrer l'entrée</button>
+      <p class="error-msg" id="idx-errorMsg">Veuillez renseigner une Date de réception antérieure à la Date de traitement, les Types, et sélectionner un Compte (RUN/MAY).</p>
+    </form>
+  </div>
+
+  <!-- LIST PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>Entrées enregistrées</h2>
+      <button class="export-btn" id="idx-exportBtn" title="Exporter en CSV" aria-label="Exporter en CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"></path>
+          <path d="M7 10l5 5 5-5"></path>
+          <path d="M5 19h14"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div id="idx-emptyState" class="empty-state">
+      <div class="glyph">⌸</div>
+      <p>Aucune entrée enregistrée pour le moment.</p>
+    </div>
+
+    <div class="table-scroll">
+      <table id="idx-entryTable" style="display:none;">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Date de réception</th>
+            <th>Date de traitement</th>
+            <th>Types</th>
+            <th>Reçu</th>
+            <th>Traité OK</th>
+            <th>Traité NOK</th>
+            <th>Motif</th>
+            <th>Comptes</th>
+            <th>Fin de traitement</th>
+            <th>DMT</th>
+            <th>DMPC</th>
+            <th>Agent</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="idx-entryBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+<div id="app-mails" class="app-pane">
+
+<div class="stack-layout">
+
+  <!-- FORM PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>MAILS</h2>
+    </div>
+
+    <form id="mail-entryForm">
+      <div class="stack-field-grid">
+        <div class="field">
+          <label for="mail-dateReception">Date et Heure de réception</label>
+          <input type="text" id="mail-dateReception" placeholder="jj/mm/aaaa hh:mm:ss" inputmode="numeric" autocomplete="off" required>
+        </div>
+
+        <div class="field">
+          <label for="mail-dateTraitement">Date début de traitement</label>
+          <input type="datetime-local" id="mail-dateTraitement" step="1" readonly required>
+        </div>
+
+        <div class="field">
+          <label for="mail-canal">Canal</label>
+          <select id="mail-canal" required>
+            <option value="">Sélectionner...</option>
+            <option value="infotelco@trm.re">infotelco@trm.re</option>
+            <option value="infoonly@trm.yt">infoonly@trm.yt</option>
+            <option value="infoprotelco@trm.re">infoprotelco@trm.re</option>
+            <option value="infoproonly@trm.yt">infoproonly@trm.yt</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="mail-idActivite">ID Activités</label>
+          <input type="text" id="mail-idActivite" placeholder="ID Activités" required>
+        </div>
+
+        <div class="toggle-group" style="margin-bottom:0;">
+          <label>Comptes</label>
+          <div class="toggle-row" data-group="comptes">
+            <button type="button" class="toggle-btn" data-value="RUN">RUN</button>
+            <button type="button" class="toggle-btn" data-value="MAY">MAY</button>
+          </div>
+        </div>
+
+        <div class="field calc">
+          <label for="mail-backlog">Backlog (Date de réception &gt; 24h)</label>
+          <input type="text" id="mail-backlog" value="Non" readonly>
+        </div>
+
+        <div class="field" style="grid-column:span 2;">
+          <label for="mail-remarques">Remarques</label>
+          <textarea id="mail-remarques" placeholder="Notes libres (facultatif)"></textarea>
+        </div>
+
+        <div class="field-row-3" style="grid-column:1/-1;">
+          <div class="field">
+            <label for="mail-dateFinTraitement">Fin de traitement</label>
+            <input type="datetime-local" id="mail-dateFinTraitement" step="1" readonly required>
+          </div>
+
+          <div class="field calc">
+            <label for="mail-dmt">DMT</label>
+            <input type="text" id="mail-dmt" value="00:00:00" readonly>
+          </div>
+
+          <div class="field calc">
+            <label for="mail-dmpc">DMPC</label>
+            <input type="text" id="mail-dmpc" value="00:00:00" readonly>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn">Enregistrer l'entrée</button>
+      <p class="error-msg" id="mail-errorMsg">Veuillez renseigner une Date et Heure de réception antérieure à la Date début de traitement, le Canal, l'ID Activités, et sélectionner un Compte (RUN/MAY).</p>
+    </form>
+  </div>
+
+  <!-- LIST PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>Entrées enregistrées</h2>
+      <button class="export-btn" id="mail-exportBtn" title="Exporter en CSV" aria-label="Exporter en CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"></path>
+          <path d="M7 10l5 5 5-5"></path>
+          <path d="M5 19h14"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div id="mail-emptyState" class="empty-state">
+      <div class="glyph">✉</div>
+      <p>Aucune entrée enregistrée pour le moment.</p>
+    </div>
+
+    <div class="table-scroll">
+      <table id="mail-entryTable" style="display:none;">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Date de réception</th>
+            <th>Date début de traitement</th>
+            <th>Canal</th>
+            <th>ID Activités</th>
+            <th>Remarques</th>
+            <th>Comptes</th>
+            <th>Backlog</th>
+            <th>Fin de traitement</th>
+            <th>DMT</th>
+            <th>DMPC</th>
+            <th>Agent</th>
+            <th>Envoi</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="mail-entryBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+
+<!-- ==========================================================================
+     Module ENCAISSEMENTS — module indépendant, sans lien avec les autres modules
+     (formulaire, historique local et logique JS entièrement séparés). Fait
+     partie du gscode fusionné pour l'envoi vers le Gsheet, distingué côté
+     serveur via "module=impayes".
+     ========================================================================== -->
+<div id="app-impayes" class="app-pane">
+
+<div class="stack-layout">
+
+  <!-- FORM PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>ENCAISSEMENTS</h2>
+    </div>
+
+    <form id="impayes-entryForm">
+      <div class="stack-field-grid">
+        <div class="field">
+          <label for="impayes-date">Date</label>
+          <input type="text" id="impayes-date" readonly>
+        </div>
+
+        <div class="field">
+          <label for="impayes-nomClient">Nom et prénom du client</label>
+          <input type="text" id="impayes-nomClient" placeholder="Nom et prénom du client" required>
+        </div>
+
+        <div class="field">
+          <label for="impayes-numero">Numéro</label>
+          <input type="text" id="impayes-numero" placeholder="Numéro" required>
+        </div>
+
+        <div class="field">
+          <label for="impayes-motif">Motif</label>
+          <select id="impayes-motif" required>
+            <option value="">Sélectionner...</option>
+            <option value="Suite impayé">Suite impayé</option>
+            <option value="Paiement en avance">Paiement en avance</option>
+            <option value="Rappels pour impayés">Rappels pour impayés</option>
+            <option value="Déblocage de seuil">Déblocage de seuil</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="impayes-montant">Montant</label>
+          <input type="number" id="impayes-montant" step="0.01" min="0" placeholder="0.00" required>
+        </div>
+
+        <div class="toggle-group" style="margin-bottom:0;">
+          <label>Zone</label>
+          <div class="toggle-row" data-group="zone">
+            <button type="button" class="toggle-btn" data-value="RUN">RUN</button>
+            <button type="button" class="toggle-btn" data-value="MAY">MAY</button>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn">Enregistrer</button>
+      <p class="error-msg" id="impayes-errorMsg">Veuillez renseigner le Nom et prénom du client, le Numéro, le Motif, la Zone (RUN/MAY) et le Montant.</p>
+    </form>
+  </div>
+
+  <!-- LIST PANEL -->
+  <div class="panel">
+    <div class="list-head">
+      <h2>Entrées enregistrées</h2>
+      <button class="export-btn" id="impayes-exportBtn" title="Exporter en CSV" aria-label="Exporter en CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"></path>
+          <path d="M7 10l5 5 5-5"></path>
+          <path d="M5 19h14"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div id="impayes-emptyState" class="empty-state">
+      <div class="glyph">⛁</div>
+      <p>Aucune entrée enregistrée pour le moment.</p>
+    </div>
+
+    <div class="table-scroll">
+      <table id="impayes-entryTable" style="display:none;">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Nom et prénom du client</th>
+            <th>Numéro</th>
+            <th>Motif</th>
+            <th>Zone</th>
+            <th>Montant</th>
+            <th>Agent</th>
+            <th>Envoi</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="impayes-entryBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+
+<!-- MODALE PORTAIL : mot de passe admin -->
+<div class="modal-overlay" id="portalAdminAuthOverlay">
+  <div class="modal-box">
+    <button type="button" class="modal-close" id="portalAdminAuthClose">×</button>
+    <h3>Accès administrateur — Portail</h3>
+    <p class="modal-sub">Réservé à la configuration de l'URL du gscode fusionné (RPI OI, Guichet VDC, ASP OI, Facebook, Indexation, Mails, Encaissements) et de l'accès agents (Config).</p>
+    <div class="field">
+      <label for="portalAdminPasswordInput">Mot de passe</label>
+      <input type="password" id="portalAdminPasswordInput" placeholder="••••••••">
+    </div>
+    <p class="admin-err" id="portalAdminAuthErr">Mot de passe incorrect.</p>
+    <button type="button" class="admin-save-btn" id="portalAdminAuthSubmit">Valider</button>
+  </div>
+</div>
+
+<!-- MODALE PORTAIL : réglage de l'URL unique du gscode fusionné -->
+<div class="modal-overlay" id="portalAdminManageOverlay">
+  <div class="modal-box">
+    <button type="button" class="modal-close" id="portalAdminManageClose">×</button>
+    <h3>URL de l'application</h3>
+    <p class="modal-sub">Les modules RPI OI, Guichet VDC, ASP OI, Facebook, Indexation, Mails et Encaissements sont fusionnés dans un seul projet Apps Script : une seule URL de déploiement pour tous.</p>
+
+    <div class="field">
+      <label for="portalUrlUnified">URL Web App — Application fusionnée (RPI OI, VDC, ASP, Facebook, Indexation, Mails)</label>
+      <input type="text" id="portalUrlUnified" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <p class="portal-hint">Utilisée par les onglets RPI OI, Guichet VDC, ASP OI, Facebook, Indexation, Mails et Encaissements pour lire et enregistrer leurs données respectives dans le Gsheet TELCO-OI 002.</p>
+
+    <div class="field">
+      <label for="portalUrlConfig">URL Web App — Config (accès agents)</label>
+      <input type="text" id="portalUrlConfig" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <p class="portal-hint">Utilisée pour l'écran de connexion : lit les colonnes NOM / PASS / ROLE de l'onglet "Config" du Gsheet TELCO-OI 002. Ce script étant séparé, il conserve sa propre URL.</p>
+
+    <p class="admin-err" id="portalAdminManageErr">Veuillez saisir une URL valide pour chaque champ.</p>
+    <button type="button" class="admin-save-btn" id="portalAdminSaveBtn">Enregistrer</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ============================================================
+  // URL UNIQUE du backend Apps Script fusionné (RPI OI, Guichet VDC,
+  // ASP OI, Facebook — un seul projet, un seul déploiement /exec,
+  // voir Code.gs fusionné). Tous ces modules lisent/écrivent cette même
+  // URL, distingués côté serveur par le paramètre "module" (rpi/vdc/asp)
+  // ou par leur nom d'action déjà unique (list/submit).
+  // Le module Config (accès agents) garde sa propre URL, gérée séparément
+  // ci-dessous, car son script n'a pas été fusionné.
+  // ============================================================
+  const UNIFIED_URL_KEY = 'portal_unified_webapp_url_v1';
+  const UNIFIED_DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbwyn23pYSwAVLO-hwc41UPTXjzftZ46_2Rl1OeMccz4H4zng9WvxvVov2bFVKYP4rOe9g/exec';
+
+  function getUnifiedWebappUrl(){
+    try { return localStorage.getItem(UNIFIED_URL_KEY) || UNIFIED_DEFAULT_URL; }
+    catch(e){ return UNIFIED_DEFAULT_URL; }
+  }
+  function setUnifiedWebappUrl(url){
+    localStorage.setItem(UNIFIED_URL_KEY, url);
+  }
+  // API exposée au panneau admin unique du portail.
+  window.UNIFIED_getWebappUrl = getUnifiedWebappUrl;
+  window.UNIFIED_setWebappUrl = setUnifiedWebappUrl;
+})();
+</script>
+
+<script>
+(function(){
+  // ============================================================
+  // Accès agents — liste des agents autorisés (nom + mot de passe),
+  // synchronisée depuis l'onglet "Config" du Gsheet TELCO-OI 002
+  // (colonnes NOM / PASS / ROLE) via un Apps Script Web App dédié.
+  // Aucune liste codée en dur : tout est géré dans le Gsheet.
+  // ============================================================
+  let PORTAL_AGENTS = [];
+  let agentsLoaded = false;
+  let agentsLoadFailed = false;
+
+  const CONFIG_URL_KEY = 'portal_config_webapp_url_v1';
+  const CONFIG_DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbxBI_oUOKQnvzQpo1AN2L51jVKjOyj8xk2kLZdaXKcY_-lADCi7X_GSmExx00LrTC4TGA/exec';
+
+  function getConfigUrl(){
+    try { return localStorage.getItem(CONFIG_URL_KEY) || CONFIG_DEFAULT_URL; }
+    catch(e){ return CONFIG_DEFAULT_URL; }
+  }
+  function setConfigUrl(url){
+    localStorage.setItem(CONFIG_URL_KEY, url);
+  }
+  // API minimale exposée au panneau admin du portail (même logique
+  // que RPI/VDC/ASP : chaque bloc reste seul responsable de sa clé).
+  window.CONFIG_getWebappUrl = getConfigUrl;
+  window.CONFIG_setWebappUrl = setConfigUrl;
+
+  function configConfigured(){
+    return getConfigUrl() && !getConfigUrl().includes('COLLEZ_ICI');
+  }
+
+  // La session reste active dans cet onglet/navigateur jusqu'à la
+  // déconnexion ou la fermeture de l'onglet (sessionStorage).
+  const SESSION_KEY = 'portal_agent_session_v1';
+
+  const overlay = document.getElementById('agentLoginOverlay');
+  const nameInput = document.getElementById('agentLoginName');
+  const passwordInput = document.getElementById('agentLoginPassword');
+  const errMsg = document.getElementById('agentLoginErr');
+  const syncErrMsg = document.getElementById('agentLoginSyncErr');
+  const loadingMsg = document.getElementById('agentLoginLoading');
+  const submitBtn = document.getElementById('agentLoginSubmit');
+  const sessionLabel = document.getElementById('agentSessionLabel');
+  const logoutBtn = document.getElementById('agentLogoutBtn');
+
+  async function loadAgents(){
+    loadingMsg.style.display = 'block';
+    syncErrMsg.classList.remove('show');
+    submitBtn.disabled = true;
+
+    if (!configConfigured()) {
+      agentsLoadFailed = true;
+      loadingMsg.style.display = 'none';
+      syncErrMsg.textContent = "URL du Web App Config non configurée. Ouvrez le panneau admin du portail pour la renseigner.";
+      syncErrMsg.classList.add('show');
+      submitBtn.disabled = false; // on laisse réessayer, attemptLogin gérera l'échec
+      return;
+    }
+
+    try {
+      const res = await fetch(`${getConfigUrl()}?action=getusers`);
+      const data = await res.json();
+      if (!data || !Array.isArray(data.users)) throw new Error('Réponse invalide');
+      PORTAL_AGENTS = data.users.map(u => ({ name: u.nom, password: u.pass, role: u.role || '' }));
+      agentsLoaded = true;
+      agentsLoadFailed = false;
+      loadingMsg.style.display = 'none';
+      submitBtn.disabled = false;
+      nameInput.focus();
+    } catch (err) {
+      agentsLoadFailed = true;
+      loadingMsg.style.display = 'none';
+      syncErrMsg.textContent = "Impossible de récupérer la liste des agents (Gsheet). Vérifiez la connexion ou l'URL configurée par l'admin.";
+      syncErrMsg.classList.add('show');
+      submitBtn.disabled = false;
+    }
+  }
+
+  function getSessionAgent(){
+    try { return sessionStorage.getItem(SESSION_KEY) || ''; }
+    catch(e){ return ''; }
+  }
+  // Exposé pour que d'autres modules puissent récupérer
+  // l'agent connecté sans dupliquer la logique de session.
+  window.PORTAL_getSessionAgent = getSessionAgent;
+  function setSessionAgent(name){
+    try { sessionStorage.setItem(SESSION_KEY, name); } catch(e){}
+  }
+  function clearSessionAgent(){
+    try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
+  }
+
+  function unlockPortal(name){
+    overlay.classList.remove('show');
+    sessionLabel.innerHTML = 'Connecté : <b>' + name + '</b>';
+  }
+
+  function attemptLogin(){
+    if (!agentsLoaded) {
+      // Liste pas encore récupérée (ou échec) : on retente une synchronisation
+      // avant de refuser la connexion.
+      loadAgents();
+      return;
+    }
+    const name = nameInput.value.trim();
+    const pwd = passwordInput.value;
+    const match = PORTAL_AGENTS.find(a =>
+      a.name.toLowerCase() === name.toLowerCase() && a.password === pwd
+    );
+    if (!match) {
+      errMsg.classList.add('show');
+      return;
+    }
+    errMsg.classList.remove('show');
+    setSessionAgent(match.name);
+    unlockPortal(match.name);
+  }
+
+  submitBtn.addEventListener('click', attemptLogin);
+  [nameInput, passwordInput].forEach(input => {
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+  });
+
+  logoutBtn.addEventListener('click', () => {
+    clearSessionAgent();
+    location.reload();
+  });
+
+  // Au chargement : on synchronise d'abord la liste des agents depuis le
+  // Gsheet, puis on vérifie si une session valide existe déjà dans cet
+  // onglet pour sauter directement l'écran de connexion.
+  loadAgents().then(() => {
+    const existing = getSessionAgent();
+    if (existing && agentsLoaded && PORTAL_AGENTS.some(a => a.name === existing)) {
+      unlockPortal(existing);
+    } else {
+      clearSessionAgent();
+    }
+  });
+})();
+</script>
+
+<script>
+  function showApp(name){
+    document.getElementById('app-rpi').classList.toggle('active', name === 'rpi');
+    document.getElementById('app-vdc').classList.toggle('active', name === 'vdc');
+    document.getElementById('app-asp').classList.toggle('active', name === 'asp');
+    document.getElementById('app-facebook').classList.toggle('active', name === 'facebook');
+    document.getElementById('app-indexation').classList.toggle('active', name === 'indexation');
+    document.getElementById('app-mails').classList.toggle('active', name === 'mails');
+    document.getElementById('app-impayes').classList.toggle('active', name === 'impayes');
+    document.getElementById('portalBtnRpi').classList.toggle('active', name === 'rpi');
+    document.getElementById('portalBtnVdc').classList.toggle('active', name === 'vdc');
+    document.getElementById('portalBtnAsp').classList.toggle('active', name === 'asp');
+    document.getElementById('portalBtnFacebook').classList.toggle('active', name === 'facebook');
+    document.getElementById('portalBtnIndexation').classList.toggle('active', name === 'indexation');
+    document.getElementById('portalBtnMails').classList.toggle('active', name === 'mails');
+    document.getElementById('portalBtnImpayes').classList.toggle('active', name === 'impayes');
+  }
+</script>
+
+<script>
+(function(){
+  const form = document.getElementById('ticketForm');
+  const errorMsg = document.getElementById('errorMsg');
+  const ticketBody = document.getElementById('ticketBody');
+  const ticketTable = document.getElementById('ticketTable');
+  const emptyState = document.getElementById('emptyState');
+  const ticketCount = document.getElementById('ticketCount');
+  const exportBtn = document.getElementById('exportBtn');
+
+  const dateReceptionInput = document.getElementById('dateReception');
+  const dateTraitementInput = document.getElementById('dateTraitement');
+  const dateFinTraitementInput = document.getElementById('dateFinTraitement');
+  const dmtInput = document.getElementById('dmt');
+  const dmpcInput = document.getElementById('dmpc');
+  const idActiviteInput = document.getElementById('idActivite');
+  const nomClientInput = document.getElementById('nomClient');
+  const contactInput = document.getElementById('contact');
+  const montantInput = document.getElementById('montant');
+  const etatAppelsInput = document.getElementById('etatAppels');
+  const statutsInput = document.getElementById('statuts');
+  const commentairesInput = document.getElementById('commentaires');
+  const lockBanner = document.getElementById('lockBanner');
+  const lockBannerText = document.getElementById('lockBannerText');
+  const releaseBtn = document.getElementById('releaseBtn');
+
+  // ==== Statuts dépendants de l'Etat d'appels (module RPI OI uniquement) ====
+  const STATUTS_PAR_ETAT = {
+    'Abouti': [
+      "Client joint et informé",
+      "Titulaire non disponible",
+      "Refus de répondre",
+      "Faux numéro",
+      "Communication coupée",
+      "Hors cible",
+      "A rappeler",
+      "Paiement avec l'agent",
+      "Problème de dialecte",
+      "Problème de communication"
+    ],
+    'Non Abouti': [
+      "Poste éteint",
+      "Répondeur",
+      "Sonne libre",
+      "Numéro désactivé",
+      "Sonne occupé"
+    ]
+  };
+
+  function refreshStatutsOptions(preserveValue) {
+    const etat = etatAppelsInput.value;
+    const valeurActuelle = preserveValue ? statutsInput.value : '';
+    const options = STATUTS_PAR_ETAT[etat] || null;
+
+    statutsInput.innerHTML = '';
+
+    if (!options) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = "Sélectionner d'abord l'Etat d'appels...";
+      statutsInput.appendChild(opt);
+      statutsInput.value = '';
+      statutsInput.disabled = true;
+      return;
+    }
+
+    statutsInput.disabled = false;
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Sélectionner...';
+    statutsInput.appendChild(placeholder);
+
+    options.forEach(libelle => {
+      const opt = document.createElement('option');
+      opt.value = libelle;
+      opt.textContent = libelle;
+      statutsInput.appendChild(opt);
+    });
+
+    statutsInput.value = options.includes(valeurActuelle) ? valeurActuelle : '';
+  }
+
+  etatAppelsInput.addEventListener('change', () => refreshStatutsOptions(false));
+  refreshStatutsOptions(true);
+
+  // ==== Connexion Google Sheet (Apps Script Web App) — module RPI OI ====
+  // Ce module fait partie du gscode fusionné : il utilise l'URL unique
+  // configurée dans le panneau Admin du portail. Le serveur distingue ce
+  // module via le paramètre "module=rpi" ajouté à chaque requête, et lit/
+  // écrit les onglets "BASE RPI" (file d'attente, via GETNEXT) et
+  // "RPI Tickets" (traitements enregistrés) du classeur TELCO-OI 002.
+  const RPI_MODULE = 'rpi';
+
+  function getWebappUrl(){ return window.UNIFIED_getWebappUrl(); }
+
+  function webappConfigured() {
+    return getWebappUrl() && !getWebappUrl().includes('COLLEZ_ICI');
+  }
+
+  const getNextBtn = document.getElementById('getNextBtn');
+  let currentRow = null; // ligne du Gsheet (BASE RPI) en cours de traitement, renseignée par GETNEXT
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function toDatetimeLocalString(date) {
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
+  // Initialise un nouveau ticket : les champs liés à BASE RPI partent vides,
+  // ils ne se remplissent que via GETNEXT.
+  function initNewTicket() {
+    dateReceptionInput.value = '';
+    idActiviteInput.value = '';
+    nomClientInput.value = '';
+    dateTraitementInput.value = '';
+    dateFinTraitementInput.value = '';
+    stopDmtTimer();
+    recalcDurations();
+  }
+
+  function toDatetimeLocalValue(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+    return toDatetimeLocalString(d);
+  }
+
+  // Récupère le prochain ticket "Non traité" de BASE RPI et pré-remplit le formulaire
+  async function fetchNextTicket() {
+    if (!webappConfigured()) {
+      alert("Configurez d'abord l'URL du module RPI OI depuis le panneau Admin du portail (barre du haut).");
+      return;
+    }
+    const agent = (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+    if (!agent) {
+      alert("Impossible de récupérer votre nom de session. Reconnectez-vous au portail.");
+      return;
+    }
+    getNextBtn.disabled = true;
+    const originalLabel = getNextBtn.textContent;
+    getNextBtn.textContent = '…';
+    try {
+      const res = await fetch(`${getWebappUrl()}?module=${RPI_MODULE}&action=getnext&agent=${encodeURIComponent(agent)}`);
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error || 'Aucun ticket non traité dans BASE RPI.');
+        return;
+      }
+      const t = data.ticket;
+      currentRow = t.row;
+      dateReceptionInput.value = toDatetimeLocalValue(t.dateReception) || toDatetimeLocalString(new Date());
+      idActiviteInput.value = t.idActivite || '';
+      nomClientInput.value = t.nomClient || '';
+      contactInput.value = t.contact || '';
+      montantInput.value = t.montant || '';
+      dateTraitementInput.value = toDatetimeLocalString(new Date());
+      dateFinTraitementInput.value = '';
+      recalcDurations();
+      startDmtTimer();
+      showLockBanner(t.idActivite);
+      refreshCards();
+    } catch (err) {
+      alert('Erreur de connexion au Gsheet : ' + err.message);
+    } finally {
+      getNextBtn.disabled = false;
+      getNextBtn.textContent = originalLabel;
+    }
+  }
+  getNextBtn.addEventListener('click', fetchNextTicket);
+
+  function showLockBanner(idActivite) {
+    lockBannerText.textContent = `🔒 Ticket ${idActivite || ''} verrouillé pour vous dans BASE RPI`;
+    lockBanner.classList.add('show');
+  }
+  function hideLockBanner() {
+    lockBanner.classList.remove('show');
+  }
+
+  // Libère le verrou dans BASE RPI sans enregistrer de traitement
+  // (ex : l'agent a récupéré le mauvais ticket par erreur).
+  async function releaseCurrentLock() {
+    if (!currentRow) { hideLockBanner(); return; }
+    const rowToRelease = currentRow;
+    currentRow = null;
+    hideLockBanner();
+    dateReceptionInput.value = '';
+    idActiviteInput.value = '';
+    nomClientInput.value = '';
+    dateTraitementInput.value = '';
+    dateFinTraitementInput.value = '';
+    stopDmtTimer();
+    recalcDurations();
+    if (!webappConfigured()) return;
+    try {
+      await fetch(`${getWebappUrl()}?module=${RPI_MODULE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'release', row: rowToRelease })
+      });
+      refreshCards();
+    } catch (err) {
+      console.error('Erreur libération du verrou', err);
+    }
+  }
+  releaseBtn.addEventListener('click', releaseCurrentLock);
+
+  // Envoie la mise à jour du ticket traité vers la ligne correspondante du Gsheet
+  async function sendUpdateToSheet(ticket) {
+    if (!webappConfigured()) return;
+    try {
+      await fetch(`${getWebappUrl()}?module=${RPI_MODULE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'update', ticket })
+      });
+    } catch (err) {
+      console.error('Erreur envoi vers le Gsheet', err);
+    }
+  }
+
+  function fillStatCard(countId, listId, items) {
+    document.getElementById(countId).textContent = String(items.length).padStart(3, '0');
+    const ul = document.getElementById(listId);
+    if (items.length === 0) {
+      ul.innerHTML = '<li class="list-empty">Aucun</li>';
+      return;
+    }
+    ul.innerHTML = items.map(t => `<li><span class="list-id">${t.idActivite}</span><span>${t.nomClient || ''}</span></li>`).join('');
+  }
+
+  // Recharge les 3 cartes (Traités / Non traités / En cours) depuis le Gsheet
+  async function refreshCards() {
+    if (!webappConfigured()) return;
+    try {
+      const res = await fetch(`${getWebappUrl()}?module=${RPI_MODULE}`);
+      const data = await res.json();
+      if (!data.ok) return;
+      const groups = { 'Traité': [], 'Non traité': [], 'En cours': [] };
+      data.tickets.forEach(t => {
+        const key = groups[t.statutTraitement] ? t.statutTraitement : 'Non traité';
+        groups[key].push(t);
+      });
+      fillStatCard('countTraites', 'listTraites', groups['Traité']);
+      fillStatCard('countNonTraites', 'listNonTraites', groups['Non traité']);
+      fillStatCard('countEnCours', 'listEnCours', groups['En cours']);
+    } catch (err) {
+      console.error('Erreur de rafraîchissement des cartes', err);
+    }
+  }
+
+  let tickets = [];
+  let nextId = 1;
+  const selections = { zone: null, paiement: null, modeReglement: null };
+
+  // Toggle button behavior (Zone)
+  document.querySelectorAll('.toggle-row').forEach(row => {
+    const group = row.dataset.group;
+    row.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        row.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selections[group] = btn.dataset.value;
+      });
+    });
+  });
+
+  // Durée en hh:mm:ss (peut dépasser 24h, format libre : total-heures:mm:ss)
+  function toHHMMSS(ms) {
+    if (isNaN(ms) || ms === null) return '00:00:00';
+    const negative = ms < 0;
+    ms = Math.abs(ms);
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const pad2 = n => String(n).padStart(2, '0');
+    return (negative ? '-' : '') + `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+  }
+
+  function recalcDurations() {
+    const reception = dateReceptionInput.value ? new Date(dateReceptionInput.value) : null;
+    const debut = dateTraitementInput.value ? new Date(dateTraitementInput.value) : null;
+
+    dmpcInput.value = (reception && debut) ? toHHMMSS(debut - reception) : '00:00:00';
+  }
+
+  // ==== Chrono DMT (au format hh:mm:ss) ====
+  // Dès que la date de début de traitement est connue, le DMT s'incrémente
+  // en direct. Il s'arrête et se fige à la valeur exacte (fin − début,
+  // au format hh:mm:ss) au moment de l'enregistrement du ticket.
+  let dmtTimer = null;
+
+  function stopDmtTimer() {
+    if (dmtTimer) { clearInterval(dmtTimer); dmtTimer = null; }
+  }
+
+  function startDmtTimer() {
+    stopDmtTimer();
+    if (!dateTraitementInput.value) { dmtInput.value = '00:00:00'; return; }
+    const tick = () => {
+      const debut = new Date(dateTraitementInput.value);
+      if (isNaN(debut.getTime())) { dmtInput.value = '00:00:00'; return; }
+      dmtInput.value = toHHMMSS(new Date() - debut);
+    };
+    tick();
+    dmtTimer = setInterval(tick, 1000);
+  }
+
+  [dateReceptionInput].forEach(input => {
+    input.addEventListener('input', recalcDurations);
+  });
+  dateTraitementInput.addEventListener('input', () => {
+    recalcDurations();
+    startDmtTimer();
+  });
+
+  function formatDateTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    const pad2 = n => String(n).padStart(2, '0');
+    return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
+
+  function renderTable() {
+    if (tickets.length === 0) {
+      ticketTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      if (ticketCount) ticketCount.textContent = '000';
+      return;
+    }
+    emptyState.style.display = 'none';
+    ticketTable.style.display = 'table';
+    if (ticketCount) ticketCount.textContent = String(tickets.length).padStart(3, '0');
+
+    ticketBody.innerHTML = tickets.map(t => `
+      <tr>
+        <td class="stub-id">#${String(t.id).padStart(4,'0')}</td>
+        <td>${t.nomClient || '—'}</td>
+        <td>${formatDateTime(t.dateReception)}</td>
+        <td>${formatDateTime(t.dateTraitement)}</td>
+        <td>${t.idActivite}</td>
+        <td>${t.contact || '—'}</td>
+        <td>${t.montant || '—'}</td>
+        <td><span class="pill zone">${t.zone}</span></td>
+        <td>${t.paiement || '—'}</td>
+        <td>${t.modeReglement || '—'}</td>
+        <td>${t.etatAppels || '—'}</td>
+        <td><span class="pill statut">${t.statuts || '—'}</span></td>
+        <td>${t.commentaires || '—'}</td>
+        <td>${formatDateTime(t.dateFinTraitement)}</td>
+        <td><span class="duration">${t.dmt}</span></td>
+        <td><span class="duration">${t.dmpc}</span></td>
+        <td>${t.agent || '—'}</td>
+        <td><button class="del-btn" data-id="${t.id}" title="Supprimer" aria-label="Supprimer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"></path>
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+          </svg>
+        </button></td>
+      </tr>
+    `).join('');
+
+    ticketBody.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        tickets = tickets.filter(t => t.id !== id);
+        renderTable();
+      });
+    });
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const dateReception = dateReceptionInput.value;
+    const dateTraitement = dateTraitementInput.value;
+    const idActivite = idActiviteInput.value.trim();
+    const nomClient = nomClientInput.value.trim();
+    const contact = contactInput.value.trim();
+    const montant = montantInput.value;
+    const paiement = selections.paiement || '';
+    const modeReglement = selections.modeReglement || '';
+    const etatAppels = etatAppelsInput.value.trim();
+    const statuts = statutsInput.value.trim();
+    const commentaires = commentairesInput.value.trim();
+    const agent = (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+
+    if (!dateReception || !dateTraitement || !idActivite || !nomClient ||
+        !agent || !selections.zone || !statuts) {
+      errorMsg.classList.add('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+
+    // La date de fin de traitement est prise automatiquement au moment du clic
+    // sur "Enregistrer" ; le chrono DMT s'arrête et se fige sur la durée exacte
+    // au format hh:mm:ss (fin − début).
+    dateFinTraitementInput.value = toDatetimeLocalString(new Date());
+    stopDmtTimer();
+    const dateFinTraitement = dateFinTraitementInput.value;
+    dmtInput.value = toHHMMSS(new Date(dateFinTraitement) - new Date(dateTraitement));
+    recalcDurations();
+
+    tickets.unshift({
+      id: nextId++,
+      dateReception, dateTraitement, dateFinTraitement,
+      dmt: dmtInput.value, dmpc: dmpcInput.value,
+      idActivite, nomClient, contact, montant,
+      zone: selections.zone, paiement, modeReglement, etatAppels, statuts, commentaires,
+      agent
+    });
+
+    renderTable();
+
+    // Le traitement est envoyé automatiquement dans RPI tickets. Si ce ticket
+    // provient de BASE RPI (via GETNEXT), la ligne correspondante y est aussi
+    // marquée "TRAITÉ" et son verrou est levé.
+    sendUpdateToSheet({
+      row: currentRow,
+      agent,
+      dateReception, dateTraitement, dateFinTraitement,
+      dmt: dmtInput.value, dmpc: dmpcInput.value,
+      idActivite, nomClient, contact, montant,
+      zone: selections.zone, paiement, modeReglement, etatAppels, statuts, commentaires
+    }).then(refreshCards);
+    currentRow = null;
+    hideLockBanner();
+
+    // Préparer un nouveau ticket
+    form.reset();
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    selections.zone = null;
+    selections.paiement = null;
+    selections.modeReglement = null;
+    refreshStatutsOptions(false);
+    initNewTicket();
+  });
+
+  exportBtn.addEventListener('click', () => {
+    if (tickets.length === 0) return;
+    const header = ['N°','Nom Client','Réception S2','Début Traitement','ID Activité','Contact','Montant','Zone','Paiement','Mode de Règlement','Etat d\'appels','Statuts','Commentaires','Fin Traitement','DMT (hh:mm:ss)','DMPC','Agent'];
+    const rows = tickets.map(t => [
+      t.id, t.nomClient || '', t.dateReception, t.dateTraitement, t.idActivite, t.contact || '', t.montant || '',
+      t.zone, t.paiement || '', t.modeReglement || '', t.etatAppels || '', t.statuts || '', t.commentaires || '',
+      t.dateFinTraitement, t.dmt, t.dmpc, t.agent || ''
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rpi_tickets_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  renderTable();
+  initNewTicket();
+  refreshCards();
+
+})();
+</script>
+
+<script>
+(function(){
+  const form = document.getElementById('vdc-ticketForm');
+  const errorMsg = document.getElementById('vdc-errorMsg');
+  const ticketBody = document.getElementById('vdc-ticketBody');
+  const ticketTable = document.getElementById('vdc-ticketTable');
+  const emptyState = document.getElementById('vdc-emptyState');
+  const ticketCount = document.getElementById('vdc-ticketCount');
+  const exportBtn = document.getElementById('vdc-exportBtn');
+
+  const dateReceptionInput = document.getElementById('vdc-dateReception');
+  const dateTraitementInput = document.getElementById('vdc-dateTraitement');
+  const dateFinTraitementInput = document.getElementById('vdc-dateFinTraitement');
+  const dmtInput = document.getElementById('vdc-dmt');
+  const dmpcInput = document.getElementById('vdc-dmpc');
+  const motifField = document.getElementById('motifField');
+  const motifInput = document.getElementById('motifRejet');
+  const idActiviteInput = document.getElementById('vdc-idActivite');
+  const boutiqueInput = document.getElementById('boutique');
+  const lockBanner = document.getElementById('vdc-lockBanner');
+  const lockBannerText = document.getElementById('vdc-lockBannerText');
+  const releaseBtn = document.getElementById('vdc-releaseBtn');
+
+  // ==== Connexion Google Sheet (Apps Script Web App) — module Guichet VDC ====
+  // Ce module fait partie du gscode fusionné : il utilise l'URL unique
+  // configurée dans le panneau Admin du portail. Le serveur distingue ce
+  // module via le paramètre "module=vdc" ajouté à chaque requête.
+  const VDC_MODULE = 'vdc';
+
+  function getWebappUrl() { return window.UNIFIED_getWebappUrl(); }
+
+  function webappConfigured() {
+    const url = getWebappUrl();
+    return !!url && !url.includes('COLLEZ_ICI');
+  }
+
+    const getNextBtn = document.getElementById('vdc-getNextBtn');
+  let currentRow = null; // ligne du Gsheet en cours de traitement (renseignée par GETNEXT)
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function toDatetimeLocalString(date) {
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
+  // Initialise un nouveau ticket : tous les champs partent vides. Réception S2,
+  // ID Activités et Boutique ne se remplissent que via GETNEXT (BASE VDC).
+  function initNewTicket() {
+    dateReceptionInput.value = '';
+    idActiviteInput.value = '';
+    boutiqueInput.value = '';
+    dateTraitementInput.value = '';
+    dateFinTraitementInput.value = '';
+    stopDmtTimer();
+    recalcDurations();
+  }
+
+  function toDatetimeLocalValue(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+    return toDatetimeLocalString(d);
+  }
+
+  // Récupère le prochain ticket "Non traité" du Gsheet et pré-remplit le formulaire
+  async function fetchNextTicket() {
+    if (!webappConfigured()) {
+      alert("Aucune activité configurée avec une URL valide. Demandez à un administrateur d'en ajouter une (icône ⚙).");
+      return;
+    }
+    const agent = (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+    if (!agent) {
+      alert("Impossible de récupérer votre nom de session. Reconnectez-vous au portail.");
+      return;
+    }
+    getNextBtn.disabled = true;
+    const originalLabel = getNextBtn.textContent;
+    getNextBtn.textContent = '…';
+    try {
+      const res = await fetch(`${getWebappUrl()}?module=${VDC_MODULE}&action=getnext&agent=${encodeURIComponent(agent)}`);
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error || 'Aucun ticket non traité dans BASE VDC.');
+        return;
+      }
+      const t = data.ticket;
+      currentRow = t.row;
+      dateReceptionInput.value = toDatetimeLocalValue(t.dateReception) || toDatetimeLocalString(new Date());
+      idActiviteInput.value = t.idActivite || '';
+      boutiqueInput.value = t.boutique || '';
+      dateTraitementInput.value = toDatetimeLocalString(new Date());
+      dateFinTraitementInput.value = '';
+      recalcDurations();
+      startDmtTimer();
+      showLockBanner(t.idActivite);
+      refreshCards();
+    } catch (err) {
+      alert('Erreur de connexion au Gsheet : ' + err.message);
+    } finally {
+      getNextBtn.disabled = false;
+      getNextBtn.textContent = originalLabel;
+    }
+  }
+  getNextBtn.addEventListener('click', fetchNextTicket);
+
+  function showLockBanner(idActivite) {
+    lockBannerText.textContent = `🔒 Ticket ${idActivite || ''} verrouillé pour vous dans BASE VDC`;
+    lockBanner.classList.add('show');
+  }
+  function hideLockBanner() {
+    lockBanner.classList.remove('show');
+  }
+
+  // Libère le verrou dans BASE VDC sans enregistrer de traitement
+  // (ex : l'agent a récupéré le mauvais ticket par erreur).
+  async function releaseCurrentLock() {
+    if (!currentRow) { hideLockBanner(); return; }
+    const rowToRelease = currentRow;
+    currentRow = null;
+    hideLockBanner();
+    dateReceptionInput.value = '';
+    idActiviteInput.value = '';
+    boutiqueInput.value = '';
+    dateTraitementInput.value = '';
+    dateFinTraitementInput.value = '';
+    stopDmtTimer();
+    recalcDurations();
+    if (!webappConfigured()) return;
+    try {
+      await fetch(`${getWebappUrl()}?module=${VDC_MODULE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'release', row: rowToRelease })
+      });
+      refreshCards();
+    } catch (err) {
+      console.error('Erreur libération du verrou', err);
+    }
+  }
+  releaseBtn.addEventListener('click', releaseCurrentLock);
+
+  // Envoie la mise à jour du ticket traité vers la ligne correspondante du Gsheet
+  async function sendUpdateToSheet(ticket) {
+    if (!webappConfigured()) return;
+    try {
+      await fetch(`${getWebappUrl()}?module=${VDC_MODULE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'update', ticket })
+      });
+    } catch (err) {
+      console.error('Erreur envoi vers le Gsheet', err);
+    }
+  }
+
+  function fillStatCard(countId, listId, items) {
+    document.getElementById(countId).textContent = String(items.length).padStart(3, '0');
+    const ul = document.getElementById(listId);
+    if (items.length === 0) {
+      ul.innerHTML = '<li class="list-empty">Aucun</li>';
+      return;
+    }
+    ul.innerHTML = items.map(t => `<li><span class="list-id">${t.idActivite}</span><span>${t.boutique || ''}</span></li>`).join('');
+  }
+
+  // Recharge les 3 cartes (Traités / Non traités / En cours) depuis le Gsheet
+  async function refreshCards() {
+    if (!webappConfigured()) return;
+    try {
+      const res = await fetch(`${getWebappUrl()}?module=${VDC_MODULE}`);
+      const data = await res.json();
+      if (!data.ok) return;
+      const groups = { 'Traité': [], 'Non traité': [], 'En cours': [] };
+      data.tickets.forEach(t => {
+        const key = groups[t.statutTraitement] ? t.statutTraitement : 'Non traité';
+        groups[key].push(t);
+      });
+      fillStatCard('vdc-countTraites', 'vdc-listTraites', groups['Traité']);
+      fillStatCard('vdc-countNonTraites', 'vdc-listNonTraites', groups['Non traité']);
+      fillStatCard('vdc-countEnCours', 'vdc-listEnCours', groups['En cours']);
+    } catch (err) {
+      console.error('Erreur de rafraîchissement des cartes', err);
+    }
+  }
+
+  let tickets = [];
+  let nextId = 1;
+  const selections = { type: null, zone: null, statut: null };
+
+  // Toggle button behavior
+  document.querySelectorAll('.toggle-row').forEach(row => {
+    const group = row.dataset.group;
+    row.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        row.querySelectorAll('.toggle-btn').forEach(b => {
+          b.classList.remove('active', 'statut-valide', 'statut-rejete');
+        });
+        btn.classList.add('active');
+        if (group === 'statut') {
+          btn.classList.add(btn.dataset.value === 'VALIDE' ? 'statut-valide' : 'statut-rejete');
+          if (btn.dataset.value === 'REJETE') {
+            motifField.style.display = 'block';
+          } else {
+            motifField.style.display = 'none';
+            motifInput.value = '';
+          }
+        }
+        selections[group] = btn.dataset.value;
+      });
+    });
+  });
+
+  // Durée en hh:mm:ss (peut dépasser 24h, format libre : total-heures:mm:ss)
+  function toHHMMSS(ms) {
+    if (isNaN(ms) || ms === null) return '00:00:00';
+    const negative = ms < 0;
+    ms = Math.abs(ms);
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const pad = n => String(n).padStart(2, '0');
+    return (negative ? '-' : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+
+  function recalcDurations() {
+    const reception = dateReceptionInput.value ? new Date(dateReceptionInput.value) : null;
+    const debut = dateTraitementInput.value ? new Date(dateTraitementInput.value) : null;
+
+    dmpcInput.value = (reception && debut) ? toHHMMSS(debut - reception) : '00:00:00';
+  }
+
+  // ==== Chrono DMT ====
+  // Dès que la date de début de traitement est connue, le DMT s'incrémente
+  // en direct (comme un chronomètre). Il s'arrête et se fige à la valeur
+  // exacte (fin − début) au moment de l'enregistrement du ticket.
+  let dmtTimer = null;
+
+  function stopDmtTimer() {
+    if (dmtTimer) { clearInterval(dmtTimer); dmtTimer = null; }
+  }
+
+  function startDmtTimer() {
+    stopDmtTimer();
+    if (!dateTraitementInput.value) { dmtInput.value = '00:00:00'; return; }
+    const tick = () => {
+      const debut = new Date(dateTraitementInput.value);
+      if (isNaN(debut.getTime())) { dmtInput.value = '00:00:00'; return; }
+      dmtInput.value = toHHMMSS(new Date() - debut);
+    };
+    tick();
+    dmtTimer = setInterval(tick, 1000);
+  }
+
+  [dateReceptionInput, dateFinTraitementInput].forEach(input => {
+    input.addEventListener('input', recalcDurations);
+  });
+  dateTraitementInput.addEventListener('input', () => {
+    recalcDurations();
+    startDmtTimer();
+  });
+
+  function formatDateTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function renderTable() {
+    if (tickets.length === 0) {
+      ticketTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      if (ticketCount) ticketCount.textContent = '000';
+      return;
+    }
+    emptyState.style.display = 'none';
+    ticketTable.style.display = 'table';
+    if (ticketCount) ticketCount.textContent = String(tickets.length).padStart(3, '0');
+
+    ticketBody.innerHTML = tickets.map(t => `
+      <tr>
+        <td class="stub-id">#${String(t.id).padStart(4,'0')}</td>
+        <td>${t.agent || '—'}</td>
+        <td>${formatDateTime(t.dateReception)}</td>
+        <td>${formatDateTime(t.dateTraitement)}</td>
+        <td>${formatDateTime(t.dateFinTraitement)}</td>
+        <td><span class="duration">${t.dmt}</span></td>
+        <td><span class="duration">${t.dmpc}</span></td>
+        <td>${t.idActivite}</td>
+        <td>${t.boutique}</td>
+        <td><span class="pill type">${t.type}</span></td>
+        <td><span class="pill zone">${t.zone}</span></td>
+        <td><span class="pill ${t.statut === 'VALIDE' ? 'valide' : 'rejete'}">${t.statut}</span></td>
+        <td>${t.motif ? t.motif : '—'}</td>
+        <td><button class="del-btn" data-id="${t.id}" title="Supprimer" aria-label="Supprimer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"></path>
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+          </svg>
+        </button></td>
+      </tr>
+    `).join('');
+
+    ticketBody.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        tickets = tickets.filter(t => t.id !== id);
+        renderTable();
+      });
+    });
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const dateReception = dateReceptionInput.value;
+    const dateTraitement = dateTraitementInput.value;
+    const idActivite = document.getElementById('vdc-idActivite').value.trim();
+    const boutique = document.getElementById('boutique').value.trim();
+    const agent = (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+    const motif = motifInput.value.trim();
+
+    if (!dateReception || !dateTraitement || !idActivite || !boutique ||
+        !agent ||
+        !selections.type || !selections.zone || !selections.statut ||
+        (selections.statut === 'REJETE' && !motif)) {
+      errorMsg.classList.add('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+
+    // La date de fin de traitement est prise automatiquement au moment du clic
+    // sur "Enregistrer" ; le chrono DMT s'arrête et se fige sur la durée exacte
+    // (fin − début).
+    dateFinTraitementInput.value = toDatetimeLocalString(new Date());
+    stopDmtTimer();
+    const dateFinTraitement = dateFinTraitementInput.value;
+    dmtInput.value = toHHMMSS(new Date(dateFinTraitement) - new Date(dateTraitement));
+    recalcDurations();
+
+    tickets.unshift({
+      id: nextId++,
+      dateReception, dateTraitement, dateFinTraitement,
+      dmt: dmtInput.value, dmpc: dmpcInput.value,
+      idActivite, boutique, agent,
+      type: selections.type, zone: selections.zone, statut: selections.statut,
+      motif: selections.statut === 'REJETE' ? motif : ''
+    });
+
+    renderTable();
+
+    // Le traitement est envoyé automatiquement dans VDC tickets. Si ce ticket
+    // provient de BASE VDC (via GETNEXT), la ligne correspondante y est aussi
+    // marquée "TRAITÉ" et son verrou est levé.
+    sendUpdateToSheet({
+      row: currentRow,
+      agent,
+      dateReception, dateTraitement, dateFinTraitement,
+      dmt: dmtInput.value, dmpc: dmpcInput.value,
+      idActivite, boutique,
+      type: selections.type, zone: selections.zone,
+      statutTicket: selections.statut,
+      motif: selections.statut === 'REJETE' ? motif : ''
+    }).then(refreshCards);
+    currentRow = null;
+    hideLockBanner();
+
+    // Préparer un nouveau ticket
+    form.reset();
+    motifField.style.display = 'none';
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active','statut-valide','statut-rejete'));
+    selections.type = null; selections.zone = null; selections.statut = null;
+    initNewTicket();
+  });
+
+  exportBtn.addEventListener('click', () => {
+    if (tickets.length === 0) return;
+    const header = ['N°','Agent','Date de réception S2','Date début de traitement','Date fin de traitement','DMT','DMPC','ID Activités','Boutique','Type','Zone','Statut','Motif rejet'];
+    const rows = tickets.map(t => [
+      t.id, t.agent || '', t.dateReception, t.dateTraitement, t.dateFinTraitement, t.dmt, t.dmpc, t.idActivite, t.boutique, t.type, t.zone, t.statut, t.motif || ''
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tickets_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  renderTable();
+  initNewTicket();
+  refreshCards();
+
+})();
+</script>
+
+<script>
+(function(){
+  const form = document.getElementById('asp-ticketForm');
+  const errorMsg = document.getElementById('asp-errorMsg');
+  const ticketBody = document.getElementById('asp-ticketBody');
+  const ticketTable = document.getElementById('asp-ticketTable');
+  const emptyState = document.getElementById('asp-emptyState');
+  const ticketCount = document.getElementById('asp-ticketCount');
+  const exportBtn = document.getElementById('asp-exportBtn');
+
+  const dateReceptionInput = document.getElementById('asp-dateReception');
+  const dateTraitementInput = document.getElementById('asp-dateTraitement');
+  const dateFinTraitementInput = document.getElementById('asp-dateFinTraitement');
+  const dmtInput = document.getElementById('asp-dmt');
+  const dmpcInput = document.getElementById('asp-dmpc');
+  const idActiviteInput = document.getElementById('asp-idActivite');
+  const nomClientInput = document.getElementById('asp-nomClient');
+  const contactInput = document.getElementById('asp-contact');
+  const montantInput = document.getElementById('asp-montant');
+  const etatAppelsInput = document.getElementById('asp-etatAppels');
+  const statutsInput = document.getElementById('asp-statuts');
+  const commentairesInput = document.getElementById('asp-commentaires');
+  const lockBanner = document.getElementById('asp-lockBanner');
+  const lockBannerText = document.getElementById('asp-lockBannerText');
+  const releaseBtn = document.getElementById('asp-releaseBtn');
+
+  // ==== Statuts dépendants de l'Etat d'appels (module RPI OI uniquement) ====
+  const STATUTS_PAR_ETAT = {
+    'Abouti': [
+      "Client joint et informé",
+      "Titulaire non disponible",
+      "Refus de répondre",
+      "Faux numéro",
+      "Communication coupée",
+      "Hors cible",
+      "A rappeler",
+      "Paiement avec l'agent",
+      "Problème de dialecte",
+      "Problème de communication"
+    ],
+    'Non Abouti': [
+      "Poste éteint",
+      "Répondeur",
+      "Sonne libre",
+      "Numéro désactivé",
+      "Sonne occupé"
+    ]
+  };
+
+  function refreshStatutsOptions(preserveValue) {
+    const etat = etatAppelsInput.value;
+    const valeurActuelle = preserveValue ? statutsInput.value : '';
+    const options = STATUTS_PAR_ETAT[etat] || null;
+
+    statutsInput.innerHTML = '';
+
+    if (!options) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = "Sélectionner d'abord l'Etat d'appels...";
+      statutsInput.appendChild(opt);
+      statutsInput.value = '';
+      statutsInput.disabled = true;
+      return;
+    }
+
+    statutsInput.disabled = false;
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Sélectionner...';
+    statutsInput.appendChild(placeholder);
+
+    options.forEach(libelle => {
+      const opt = document.createElement('option');
+      opt.value = libelle;
+      opt.textContent = libelle;
+      statutsInput.appendChild(opt);
+    });
+
+    statutsInput.value = options.includes(valeurActuelle) ? valeurActuelle : '';
+  }
+
+  etatAppelsInput.addEventListener('change', () => refreshStatutsOptions(false));
+  refreshStatutsOptions(true);
+
+  // ==== Connexion Google Sheet (Apps Script Web App) — module ASP OI ====
+  // Module indépendant des autres onglets (RPI OI / Guichet VDC) : stockage
+  // ==== Connexion Google Sheet (Apps Script Web App) — module ASP OI ====
+  // Ce module fait partie du gscode fusionné : il utilise l'URL unique
+  // configurée dans le panneau Admin du portail. Le serveur distingue ce
+  // module via le paramètre "module=asp" ajouté à chaque requête.
+  const ASP_MODULE = 'asp';
+
+  function getWebappUrl(){ return window.UNIFIED_getWebappUrl(); }
+
+  function webappConfigured() {
+    return getWebappUrl() && !getWebappUrl().includes('COLLEZ_ICI');
+  }
+
+  const getNextBtn = document.getElementById('asp-getNextBtn');
+  let currentRow = null; // ligne du Gsheet (BASE ASP) en cours de traitement, renseignée par GETNEXT
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function toDatetimeLocalString(date) {
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
+  // Initialise un nouveau ticket : les champs liés à BASE ASP partent vides,
+  // ils ne se remplissent que via GETNEXT.
+  function initNewTicket() {
+    dateReceptionInput.value = '';
+    idActiviteInput.value = '';
+    nomClientInput.value = '';
+    dateTraitementInput.value = '';
+    dateFinTraitementInput.value = '';
+    stopDmtTimer();
+    recalcDurations();
+  }
+
+  function toDatetimeLocalValue(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+    return toDatetimeLocalString(d);
+  }
+
+  // Récupère le prochain ticket "Non traité" de BASE ASP et pré-remplit le formulaire
+  async function fetchNextTicket() {
+    if (!webappConfigured()) {
+      alert("Configurez d'abord l'URL du module ASP OI depuis le panneau Admin du portail (barre du haut).");
+      return;
+    }
+    const agent = (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+    if (!agent) {
+      alert("Impossible de récupérer votre nom de session. Reconnectez-vous au portail.");
+      return;
+    }
+    getNextBtn.disabled = true;
+    const originalLabel = getNextBtn.textContent;
+    getNextBtn.textContent = '…';
+    try {
+      const res = await fetch(`${getWebappUrl()}?module=${ASP_MODULE}&action=getnext&agent=${encodeURIComponent(agent)}`);
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error || 'Aucun ticket non traité dans BASE ASP.');
+        return;
+      }
+      const t = data.ticket;
+      currentRow = t.row;
+      dateReceptionInput.value = toDatetimeLocalValue(t.dateReception) || toDatetimeLocalString(new Date());
+      idActiviteInput.value = t.idActivite || '';
+      nomClientInput.value = t.nomClient || '';
+      contactInput.value = t.contact || '';
+      montantInput.value = t.montant || '';
+      dateTraitementInput.value = toDatetimeLocalString(new Date());
+      dateFinTraitementInput.value = '';
+      recalcDurations();
+      startDmtTimer();
+      showLockBanner(t.idActivite);
+      refreshCards();
+    } catch (err) {
+      alert('Erreur de connexion au Gsheet : ' + err.message);
+    } finally {
+      getNextBtn.disabled = false;
+      getNextBtn.textContent = originalLabel;
+    }
+  }
+  getNextBtn.addEventListener('click', fetchNextTicket);
+
+  function showLockBanner(idActivite) {
+    lockBannerText.textContent = `🔒 Ticket ${idActivite || ''} verrouillé pour vous dans BASE ASP`;
+    lockBanner.classList.add('show');
+  }
+  function hideLockBanner() {
+    lockBanner.classList.remove('show');
+  }
+
+  // Libère le verrou dans BASE ASP sans enregistrer de traitement
+  // (ex : l'agent a récupéré le mauvais ticket par erreur).
+  async function releaseCurrentLock() {
+    if (!currentRow) { hideLockBanner(); return; }
+    const rowToRelease = currentRow;
+    currentRow = null;
+    hideLockBanner();
+    dateReceptionInput.value = '';
+    idActiviteInput.value = '';
+    nomClientInput.value = '';
+    dateTraitementInput.value = '';
+    dateFinTraitementInput.value = '';
+    stopDmtTimer();
+    recalcDurations();
+    if (!webappConfigured()) return;
+    try {
+      await fetch(`${getWebappUrl()}?module=${ASP_MODULE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'release', row: rowToRelease })
+      });
+      refreshCards();
+    } catch (err) {
+      console.error('Erreur libération du verrou', err);
+    }
+  }
+  releaseBtn.addEventListener('click', releaseCurrentLock);
+
+  // Envoie la mise à jour du ticket traité vers la ligne correspondante du Gsheet
+  async function sendUpdateToSheet(ticket) {
+    if (!webappConfigured()) return;
+    try {
+      await fetch(`${getWebappUrl()}?module=${ASP_MODULE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'update', ticket })
+      });
+    } catch (err) {
+      console.error('Erreur envoi vers le Gsheet', err);
+    }
+  }
+
+  function fillStatCard(countId, listId, items) {
+    document.getElementById(countId).textContent = String(items.length).padStart(3, '0');
+    const ul = document.getElementById(listId);
+    if (items.length === 0) {
+      ul.innerHTML = '<li class="list-empty">Aucun</li>';
+      return;
+    }
+    ul.innerHTML = items.map(t => `<li><span class="list-id">${t.idActivite}</span><span>${t.nomClient || ''}</span></li>`).join('');
+  }
+
+  // Recharge les 3 cartes (Traités / Non traités / En cours) depuis le Gsheet
+  async function refreshCards() {
+    if (!webappConfigured()) return;
+    try {
+      const res = await fetch(`${getWebappUrl()}?module=${ASP_MODULE}`);
+      const data = await res.json();
+      if (!data.ok) return;
+      const groups = { 'Traité': [], 'Non traité': [], 'En cours': [] };
+      data.tickets.forEach(t => {
+        const key = groups[t.statutTraitement] ? t.statutTraitement : 'Non traité';
+        groups[key].push(t);
+      });
+      fillStatCard('asp-countTraites', 'asp-listTraites', groups['Traité']);
+      fillStatCard('asp-countNonTraites', 'asp-listNonTraites', groups['Non traité']);
+      fillStatCard('asp-countEnCours', 'asp-listEnCours', groups['En cours']);
+    } catch (err) {
+      console.error('Erreur de rafraîchissement des cartes', err);
+    }
+  }
+
+  let tickets = [];
+  let nextId = 1;
+  const selections = { zone: null, paiement: null, modeReglement: null };
+
+  // Toggle button behavior (Zone)
+  document.querySelectorAll('.toggle-row').forEach(row => {
+    const group = row.dataset.group;
+    row.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        row.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selections[group] = btn.dataset.value;
+      });
+    });
+  });
+
+  // Durée en hh:mm:ss (peut dépasser 24h, format libre : total-heures:mm:ss)
+  function toHHMMSS(ms) {
+    if (isNaN(ms) || ms === null) return '00:00:00';
+    const negative = ms < 0;
+    ms = Math.abs(ms);
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const pad2 = n => String(n).padStart(2, '0');
+    return (negative ? '-' : '') + `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+  }
+
+  function recalcDurations() {
+    const reception = dateReceptionInput.value ? new Date(dateReceptionInput.value) : null;
+    const debut = dateTraitementInput.value ? new Date(dateTraitementInput.value) : null;
+
+    dmpcInput.value = (reception && debut) ? toHHMMSS(debut - reception) : '00:00:00';
+  }
+
+  // ==== Chrono DMT (au format hh:mm:ss) ====
+  // Dès que la date de début de traitement est connue, le DMT s'incrémente
+  // en direct. Il s'arrête et se fige à la valeur exacte (fin − début,
+  // au format hh:mm:ss) au moment de l'enregistrement du ticket.
+  let dmtTimer = null;
+
+  function stopDmtTimer() {
+    if (dmtTimer) { clearInterval(dmtTimer); dmtTimer = null; }
+  }
+
+  function startDmtTimer() {
+    stopDmtTimer();
+    if (!dateTraitementInput.value) { dmtInput.value = '00:00:00'; return; }
+    const tick = () => {
+      const debut = new Date(dateTraitementInput.value);
+      if (isNaN(debut.getTime())) { dmtInput.value = '00:00:00'; return; }
+      dmtInput.value = toHHMMSS(new Date() - debut);
+    };
+    tick();
+    dmtTimer = setInterval(tick, 1000);
+  }
+
+  [dateReceptionInput].forEach(input => {
+    input.addEventListener('input', recalcDurations);
+  });
+  dateTraitementInput.addEventListener('input', () => {
+    recalcDurations();
+    startDmtTimer();
+  });
+
+  function formatDateTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    const pad2 = n => String(n).padStart(2, '0');
+    return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
+
+  function renderTable() {
+    if (tickets.length === 0) {
+      ticketTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      if (ticketCount) ticketCount.textContent = '000';
+      return;
+    }
+    emptyState.style.display = 'none';
+    ticketTable.style.display = 'table';
+    if (ticketCount) ticketCount.textContent = String(tickets.length).padStart(3, '0');
+
+    ticketBody.innerHTML = tickets.map(t => `
+      <tr>
+        <td class="stub-id">#${String(t.id).padStart(4,'0')}</td>
+        <td>${t.nomClient || '—'}</td>
+        <td>${formatDateTime(t.dateReception)}</td>
+        <td>${formatDateTime(t.dateTraitement)}</td>
+        <td>${t.idActivite}</td>
+        <td>${t.contact || '—'}</td>
+        <td>${t.montant || '—'}</td>
+        <td><span class="pill zone">${t.zone}</span></td>
+        <td>${t.paiement || '—'}</td>
+        <td>${t.modeReglement || '—'}</td>
+        <td>${t.etatAppels || '—'}</td>
+        <td><span class="pill statut">${t.statuts || '—'}</span></td>
+        <td>${t.commentaires || '—'}</td>
+        <td>${formatDateTime(t.dateFinTraitement)}</td>
+        <td><span class="duration">${t.dmt}</span></td>
+        <td><span class="duration">${t.dmpc}</span></td>
+        <td>${t.agent || '—'}</td>
+        <td><button class="del-btn" data-id="${t.id}" title="Supprimer" aria-label="Supprimer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"></path>
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+          </svg>
+        </button></td>
+      </tr>
+    `).join('');
+
+    ticketBody.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        tickets = tickets.filter(t => t.id !== id);
+        renderTable();
+      });
+    });
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const dateReception = dateReceptionInput.value;
+    const dateTraitement = dateTraitementInput.value;
+    const idActivite = idActiviteInput.value.trim();
+    const nomClient = nomClientInput.value.trim();
+    const contact = contactInput.value.trim();
+    const montant = montantInput.value;
+    const paiement = selections.paiement || '';
+    const modeReglement = selections.modeReglement || '';
+    const etatAppels = etatAppelsInput.value.trim();
+    const statuts = statutsInput.value.trim();
+    const commentaires = commentairesInput.value.trim();
+    const agent = (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+
+    if (!dateReception || !dateTraitement || !idActivite || !nomClient ||
+        !agent || !selections.zone || !statuts) {
+      errorMsg.classList.add('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+
+    // La date de fin de traitement est prise automatiquement au moment du clic
+    // sur "Enregistrer" ; le chrono DMT s'arrête et se fige sur la durée exacte
+    // au format hh:mm:ss (fin − début).
+    dateFinTraitementInput.value = toDatetimeLocalString(new Date());
+    stopDmtTimer();
+    const dateFinTraitement = dateFinTraitementInput.value;
+    dmtInput.value = toHHMMSS(new Date(dateFinTraitement) - new Date(dateTraitement));
+    recalcDurations();
+
+    tickets.unshift({
+      id: nextId++,
+      dateReception, dateTraitement, dateFinTraitement,
+      dmt: dmtInput.value, dmpc: dmpcInput.value,
+      idActivite, nomClient, contact, montant,
+      zone: selections.zone, paiement, modeReglement, etatAppels, statuts, commentaires,
+      agent
+    });
+
+    renderTable();
+
+    // Le traitement est envoyé automatiquement dans ASP tickets. Si ce ticket
+    // provient de BASE ASP (via GETNEXT), la ligne correspondante y est aussi
+    // marquée "TRAITÉ" et son verrou est levé.
+    sendUpdateToSheet({
+      row: currentRow,
+      agent,
+      dateReception, dateTraitement, dateFinTraitement,
+      dmt: dmtInput.value, dmpc: dmpcInput.value,
+      idActivite, nomClient, contact, montant,
+      zone: selections.zone, paiement, modeReglement, etatAppels, statuts, commentaires
+    }).then(refreshCards);
+    currentRow = null;
+    hideLockBanner();
+
+    // Préparer un nouveau ticket
+    form.reset();
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    selections.zone = null;
+    selections.paiement = null;
+    selections.modeReglement = null;
+    refreshStatutsOptions(false);
+    initNewTicket();
+  });
+
+  exportBtn.addEventListener('click', () => {
+    if (tickets.length === 0) return;
+    const header = ['N°','Nom Client','Réception S2','Début Traitement','ID Activité','Contact','Montant','Zone','Paiement','Mode de Règlement','Etat d\'appels','Statuts','Commentaires','Fin Traitement','DMT (hh:mm:ss)','DMPC','Agent'];
+    const rows = tickets.map(t => [
+      t.id, t.nomClient || '', t.dateReception, t.dateTraitement, t.idActivite, t.contact || '', t.montant || '',
+      t.zone, t.paiement || '', t.modeReglement || '', t.etatAppels || '', t.statuts || '', t.commentaires || '',
+      t.dateFinTraitement, t.dmt, t.dmpc, t.agent || ''
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `asp_tickets_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  renderTable();
+  initNewTicket();
+  refreshCards();
+
+})();
+</script>
+
+<script>
+(function(){
+  // ============================================================
+  // Module FACEBOOK — module indépendant (aucun lien avec les Gsheets
+  // RPI/VDC/ASP). Relié à son propre déploiement Apps Script, qui
+  // lit/écrit exclusivement son propre onglet Gsheet dédié "Facebook".
+  // localStorage sert uniquement de cache/secours hors-ligne.
+  // ============================================================
+  const FACEBOOK_STORAGE_KEY = 'portal_facebook_local_v1';
+  // Module Facebook : fait partie du gscode fusionné, utilise l'URL unique
+  // configurée dans le panneau Admin du portail (action list/submit, déjà
+  // unique côté serveur, donc pas de paramètre "module" nécessaire).
+  function getFacebookWebappUrl(){ return window.UNIFIED_getWebappUrl(); }
+
+  function facebookWebappConfigured(){
+    return getFacebookWebappUrl() && !getFacebookWebappUrl().includes('COLLEZ_ICI');
+  }
+
+  const dateReceptionInput = document.getElementById('facebookDateReception');
+  const receptionConfirmBtn = document.getElementById('facebookReceptionConfirmBtn');
+  const receptionError = document.getElementById('facebookReceptionError');
+  const comptesInput = document.getElementById('facebookComptes');
+  const idZendeskInput = document.getElementById('facebookIdZendesk');
+  const demandeInput = document.getElementById('facebookDemande');
+  const mpRecusInput = document.getElementById('facebookMpRecus');
+  const mpTraitesInput = document.getElementById('facebookMpTraites');
+  const dateDebutInput = document.getElementById('facebookDateDebut');
+  const dmpcInput = document.getElementById('facebookDmpc');
+  const dmtInput = document.getElementById('facebookDmt');
+  const submitBtn = document.getElementById('facebookSubmitBtn');
+  const errorMsg = document.getElementById('facebookErrorMsg');
+  const exportBtn = document.getElementById('facebookExportBtn');
+  const table = document.getElementById('facebookTable');
+  const tableBody = document.getElementById('facebookTableBody');
+  const emptyState = document.getElementById('facebookEmptyState');
+
+  // Objets Date réels conservés en mémoire (les champs affichés sont du texte
+  // au format jj/mm/aaaa hh:mm:ss, saisi manuellement pour la réception et
+  // calculé automatiquement pour le début de traitement).
+  let receptionDate = null;
+  let debutDate = null;
+  let receptionConfirmed = false;
+
+  // ==== Cache local (secours hors-ligne / avant configuration de l'URL) ====
+  function loadFacebookLocal(){
+    try {
+      const raw = localStorage.getItem(FACEBOOK_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch(e){ return []; }
+  }
+  function saveFacebookLocal(list){
+    try { localStorage.setItem(FACEBOOK_STORAGE_KEY, JSON.stringify(list)); }
+    catch(e){ /* stockage local indisponible : rien à faire de plus */ }
+  }
+
+  // ==== Durée hh:mm:ss ====
+  function toHHMMSS(ms) {
+    if (isNaN(ms) || ms === null) return '00:00:00';
+    const negative = ms < 0;
+    ms = Math.abs(ms);
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const pad2 = n => String(n).padStart(2, '0');
+    return (negative ? '-' : '') + `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+  }
+
+  function recalcDmpc() {
+    dmpcInput.value = (receptionDate && debutDate) ? toHHMMSS(debutDate - receptionDate) : '—';
+  }
+
+  // ==== Chrono DMT : démarre dès que "Date début de traitement" est
+  // calculée automatiquement, se fige à la valeur exacte (fin − début) au clic sur VALIDE.
+  let dmtTimer = null;
+  function stopDmtTimer(){ if (dmtTimer) { clearInterval(dmtTimer); dmtTimer = null; } }
+  function startDmtTimer(){
+    stopDmtTimer();
+    if (!debutDate) { dmtInput.value = '00:00:00'; return; }
+    const tick = () => { dmtInput.value = toHHMMSS(new Date() - debutDate); };
+    tick();
+    dmtTimer = setInterval(tick, 1000);
+  }
+
+  const pad2 = n => String(n).padStart(2, '0');
+
+  // ==== Format jj/mm/aaaa hh:mm:ss : parsing strict + formatage ====
+  const FR_DATETIME_RE = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})$/;
+
+  function parseFRDateTime(str) {
+    if (!str) return null;
+    const m = FR_DATETIME_RE.exec(str.trim());
+    if (!m) return null;
+    const day = parseInt(m[1], 10), month = parseInt(m[2], 10), year = parseInt(m[3], 10);
+    const hour = parseInt(m[4], 10), min = parseInt(m[5], 10), sec = parseInt(m[6], 10);
+    if (month < 1 || month > 12) return null;
+    if (hour > 23 || min > 59 || sec > 59) return null;
+    const d = new Date(year, month - 1, day, hour, min, sec);
+    // Vérifie que la date existe réellement (ex : 31/02 rejeté)
+    if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+    return d;
+  }
+
+  function formatFRDateTime(d) {
+    if (!d || isNaN(d.getTime())) return '—';
+    return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '—';
+    // Déjà au format jj/mm/aaaa hh:mm:ss (envoyé par ce module) : afficher tel quel.
+    if (FR_DATETIME_RE.test(String(value).trim())) return value;
+    // Rétro-compatibilité avec d'anciennes entrées (ISO / datetime-local).
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return String(value);
+    return formatFRDateTime(d);
+  }
+
+  // ==== Confirmation de la Date et heure de réception ====
+  function setReceptionEditable() {
+    receptionConfirmed = false;
+    receptionDate = null;
+    debutDate = null;
+    dateReceptionInput.readOnly = false;
+    dateReceptionInput.classList.remove('facebook-confirmed');
+    receptionConfirmBtn.textContent = '✓';
+    receptionConfirmBtn.classList.remove('is-edit');
+    receptionConfirmBtn.title = 'Confirmer';
+    dateDebutInput.value = '—';
+    dmpcInput.value = '—';
+    dmtInput.value = '00:00:00';
+    stopDmtTimer();
+    receptionError.classList.remove('show');
+  }
+
+  function confirmReception() {
+    receptionError.classList.remove('show');
+    const parsed = parseFRDateTime(dateReceptionInput.value);
+    const now = new Date();
+
+    if (!parsed) {
+      receptionError.textContent = 'Format invalide. Utilisez jj/mm/aaaa hh:mm:ss (ex : 07/08/2026 14:30:00).';
+      receptionError.classList.add('show');
+      return;
+    }
+    // La Date début de traitement est prise automatiquement à l'instant présent ;
+    // la réception doit lui être antérieure.
+    if (parsed.getTime() >= now.getTime()) {
+      receptionError.textContent = 'La date de réception doit être antérieure à la date début de traitement.';
+      receptionError.classList.add('show');
+      return;
+    }
+
+    receptionDate = parsed;
+    debutDate = now;
+    receptionConfirmed = true;
+
+    dateReceptionInput.value = formatFRDateTime(receptionDate);
+    dateReceptionInput.readOnly = true;
+    dateReceptionInput.classList.add('facebook-confirmed');
+    receptionConfirmBtn.textContent = '✎';
+    receptionConfirmBtn.classList.add('is-edit');
+    receptionConfirmBtn.title = 'Modifier';
+
+    dateDebutInput.value = formatFRDateTime(debutDate);
+    recalcDmpc();
+    startDmtTimer();
+  }
+
+  receptionConfirmBtn.addEventListener('click', () => {
+    if (receptionConfirmed) { setReceptionEditable(); dateReceptionInput.focus(); return; }
+    confirmReception();
+  });
+  dateReceptionInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !receptionConfirmed) { e.preventDefault(); confirmReception(); }
+  });
+  dateReceptionInput.addEventListener('input', () => { receptionError.classList.remove('show'); });
+
+  let facebookEntries = loadFacebookLocal();
+  let facebookSyncing = false;
+
+  // ==== Connexion Google Sheet (Apps Script Web App) — module Facebook ====
+  // Déploiement Apps Script dédié, lisant/écrivant uniquement l'onglet Gsheet
+  // "Facebook" dédié à ce module (voir script Apps Script fourni séparément,
+  // à adapter avec ses propres colonnes).
+  function facebookFromRow(r) {
+    return {
+      dateReception: r.dateReception, dateDebut: r.dateDebut, comptes: r.comptes,
+      idZendesk: r.idZendesk, demande: r.demande, mpRecus: r.mpRecus, mpTraites: r.mpTraites,
+      dateFin: r.dateFin, dmpc: r.dmpc, dmt: r.dmt, backlog: r.backlog, agent: r.agent
+    };
+  }
+
+  async function fetchFacebookFromSheet() {
+    if (!facebookWebappConfigured()) return;
+    facebookSyncing = true;
+    try {
+      const res = await fetch(`${getFacebookWebappUrl()}?action=list`);
+      const data = await res.json();
+      if (!data.ok || !Array.isArray(data.facebook)) throw new Error(data.error || 'Réponse invalide');
+      // Le plus récent en premier, comme pour l'historique local.
+      facebookEntries = data.facebook.map(facebookFromRow).reverse();
+      saveFacebookLocal(facebookEntries);
+      renderTable();
+    } catch (err) {
+      console.error('Erreur de synchronisation Facebook (Gsheet)', err);
+    } finally {
+      facebookSyncing = false;
+    }
+  }
+
+  async function postFacebookToSheet(payload) {
+    if (!facebookWebappConfigured()) return { ok: false, offline: true };
+    try {
+      await fetch(getFacebookWebappUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'submit', facebook: payload })
+      });
+      return { ok: true };
+    } catch (err) {
+      console.error('Erreur envoi Facebook vers le Gsheet', err);
+      return { ok: false, error: err };
+    }
+  }
+
+  function renderTable() {
+    if (facebookEntries.length === 0) {
+      table.style.display = 'none';
+      emptyState.style.display = 'block';
+      return;
+    }
+    emptyState.style.display = 'none';
+    table.style.display = 'table';
+    tableBody.innerHTML = facebookEntries.map(m => `
+      <tr>
+        <td>${formatDateTime(m.dateReception)}</td>
+        <td>${formatDateTime(m.dateDebut)}</td>
+        <td>${m.comptes || '—'}</td>
+        <td>${m.idZendesk || '—'}</td>
+        <td>${m.demande || '—'}</td>
+        <td>${m.mpRecus ?? '—'}</td>
+        <td>${m.mpTraites ?? '—'}</td>
+        <td>${formatDateTime(m.dateFin)}</td>
+        <td>${m.dmpc || '—'}</td>
+        <td>${m.dmt || '—'}</td>
+        <td>${m.backlog || '—'}</td>
+        <td>${m.agent || '—'}</td>
+      </tr>
+    `).join('');
+  }
+
+  function resetForm() {
+    comptesInput.value = '';
+    idZendeskInput.value = '';
+    demandeInput.value = '';
+    mpRecusInput.value = '';
+    mpTraitesInput.value = '';
+    setReceptionEditable();
+    dateReceptionInput.value = '';
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    const comptes = comptesInput.value.trim();
+    const idZendesk = idZendeskInput.value.trim();
+    const demande = demandeInput.value.trim();
+    const mpRecus = mpRecusInput.value.trim();
+    const mpTraites = mpTraitesInput.value.trim();
+
+    if (!receptionConfirmed || !receptionDate || !debutDate || !comptes || !idZendesk || !demande || mpRecus === '' || mpTraites === '') {
+      errorMsg.classList.add('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+
+    // Date fin de traitement prise automatiquement au clic sur VALIDE ;
+    // le DMT se fige sur la durée exacte (fin − début) au format hh:mm:ss.
+    const dateFinDate = new Date();
+    stopDmtTimer();
+    const dmt = toHHMMSS(dateFinDate - debutDate);
+    dmtInput.value = dmt;
+    recalcDmpc();
+
+    const agent = (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+
+    const dateReception = formatFRDateTime(receptionDate);
+    const dateDebut = formatFRDateTime(debutDate);
+    const dateFin = formatFRDateTime(dateFinDate);
+
+    const payload = {
+      dateReception, dateDebut, comptes, idZendesk, demande,
+      mpRecus, mpTraites, dateFin, dmpc: dmpcInput.value, dmt, backlog: '', agent
+    };
+
+    // Toujours mettre à jour l'affichage/le cache local immédiatement,
+    // puis synchroniser vers le Gsheet Facebook si l'URL est
+    // configurée (sinon l'entrée reste en local, comme avant).
+    facebookEntries.unshift({ ...payload });
+    saveFacebookLocal(facebookEntries);
+    renderTable();
+    resetForm();
+
+    if (facebookWebappConfigured()) {
+      submitBtn.disabled = true;
+      const result = await postFacebookToSheet(payload);
+      submitBtn.disabled = false;
+      if (!result.ok) {
+        alert("L'entrée a été enregistrée localement mais l'envoi vers le Gsheet a échoué. Vérifiez la connexion ou l'URL configurée par l'admin.");
+        return;
+      }
+      // Recharge depuis le Gsheet pour rester la source de vérité
+      // (numéros de ligne, éventuelles corrections faites côté Gsheet, etc.).
+      fetchFacebookFromSheet();
+    }
+  });
+
+  exportBtn.addEventListener('click', () => {
+    if (facebookEntries.length === 0) return;
+    const header = ['Date et heure de réception','Date début de traitement','Comptes','ID Zendesk','Demande','MP reçus','MP traités','Date fin de traitement','DMPC','DMT','Backlog','Agent'];
+    const rows = facebookEntries.map(m => [
+      m.dateReception, m.dateDebut, m.comptes, m.idZendesk, m.demande,
+      m.mpRecus, m.mpTraites, m.dateFin, m.dmpc, m.dmt, m.backlog, m.agent
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v || '').replace(/"/g,'""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `facebook_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  renderTable();
+  if (facebookWebappConfigured()) fetchFacebookFromSheet();
+})();
+</script>
+
+<script>
+(function(){
+  // ============================================================
+  // Module INDEXATION — fait partie du gscode fusionné : utilise l'URL
+  // unique du portail, distingué côté serveur via "module=indexation".
+  // Saisie 100% manuelle (pas de file d'attente / GETNEXT) : chaque
+  // entrée est ajoutée localement puis synchronisée vers le Gsheet.
+  // ============================================================
+  const IDX_MODULE = 'indexation';
+  function getWebappUrl(){ return window.UNIFIED_getWebappUrl(); }
+  function webappConfigured(){ return getWebappUrl() && !getWebappUrl().includes('COLLEZ_ICI'); }
+
+  const form = document.getElementById('idx-entryForm');
+  const errorMsg = document.getElementById('idx-errorMsg');
+  const entryBody = document.getElementById('idx-entryBody');
+  const entryTable = document.getElementById('idx-entryTable');
+  const emptyState = document.getElementById('idx-emptyState');
+  const exportBtn = document.getElementById('idx-exportBtn');
+
+  const dateReceptionInput = document.getElementById('idx-dateReception');
+  const dateTraitementInput = document.getElementById('idx-dateTraitement');
+  const dateFinTraitementInput = document.getElementById('idx-dateFinTraitement');
+  const typesInput = document.getElementById('idx-types');
+  const traiteOkInput = document.getElementById('idx-traiteOk');
+  const traiteNokInput = document.getElementById('idx-traiteNok');
+  const recuInput = document.getElementById('idx-recu');
+  const motifInput = document.getElementById('idx-motif');
+  const dmtInput = document.getElementById('idx-dmt');
+  const dmpcInput = document.getElementById('idx-dmpc');
+
+  const selections = { comptes: null };
+  document.querySelectorAll('#app-indexation .toggle-row').forEach(row => {
+    const group = row.dataset.group;
+    row.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        row.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selections[group] = btn.dataset.value;
+      });
+    });
+  });
+
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function toDatetimeLocalString(date){
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+  function toHHMMSS(ms){
+    if (isNaN(ms) || ms === null) return '00:00:00';
+    const negative = ms < 0;
+    ms = Math.abs(ms);
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return (negative ? '-' : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+  function formatDateTimeSec(v){
+    if (!v) return '—';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '—';
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  // ==== Date de réception : saisie 100% libre (pas de calendrier).
+  // Format attendu : jj/mm/aaaa hh:mm:ss (les secondes sont optionnelles). ====
+  function parseFrDateTime(str){
+    if (!str) return null;
+    const m = str.trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return null;
+    const [, dd, mm, yyyy, hh, mi, ss] = m;
+    const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), ss ? Number(ss) : 0);
+    if (isNaN(d.getTime())) return null;
+    if (d.getDate() !== Number(dd) || d.getMonth() !== Number(mm) - 1 || d.getFullYear() !== Number(yyyy) || d.getHours() !== Number(hh) || d.getMinutes() !== Number(mi)) return null;
+    return d;
+  }
+  function formatFrDateTime(d){
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+  let idxReceptionDate = null; // Date JS validée à partir de la saisie libre
+
+  // ==== Reçu = Traité OK + Traité NOK (calcul automatique) ====
+  function recalcRecu(){
+    const ok = parseInt(traiteOkInput.value, 10) || 0;
+    const nok = parseInt(traiteNokInput.value, 10) || 0;
+    recuInput.value = String(ok + nok);
+  }
+  traiteOkInput.addEventListener('input', recalcRecu);
+  traiteNokInput.addEventListener('input', recalcRecu);
+
+  // ==== Dès que la Date de réception est renseignée, la Date de
+  // traitement se remplit automatiquement avec l'heure courante. La
+  // réception doit toujours rester antérieure à la date de traitement. ====
+  let idxTimer = null;
+  function stopIdxTimer(){ if (idxTimer){ clearInterval(idxTimer); idxTimer = null; } }
+  function startIdxTimer(){
+    stopIdxTimer();
+    const tick = () => {
+      const now = new Date();
+      if (dateTraitementInput.value){
+        const debut = new Date(dateTraitementInput.value);
+        if (!isNaN(debut.getTime())) dmtInput.value = toHHMMSS(now - debut);
+      }
+      if (idxReceptionDate) {
+        dmpcInput.value = toHHMMSS(now - idxReceptionDate);
+      }
+    };
+    tick();
+    idxTimer = setInterval(tick, 1000);
+  }
+
+  function validateReceptionDate(){
+    if (!dateReceptionInput.value.trim()) { dateReceptionInput.setCustomValidity(''); return true; }
+    if (!idxReceptionDate) {
+      dateReceptionInput.setCustomValidity('Format attendu : jj/mm/aaaa hh:mm:ss');
+      return false;
+    }
+    const traitement = dateTraitementInput.value ? new Date(dateTraitementInput.value) : new Date();
+    if (idxReceptionDate >= traitement) {
+      dateReceptionInput.setCustomValidity('La date de réception doit être antérieure à la date de traitement.');
+      return false;
+    }
+    dateReceptionInput.setCustomValidity('');
+    return true;
+  }
+
+  dateReceptionInput.addEventListener('change', () => {
+    const raw = dateReceptionInput.value.trim();
+    if (!raw) { idxReceptionDate = null; return; }
+
+    const parsed = parseFrDateTime(raw);
+    if (!parsed) {
+      idxReceptionDate = null;
+      errorMsg.textContent = 'Date de réception invalide. Format attendu : jj/mm/aaaa hh:mm:ss (ex. 11/08/2026 09:30:00).';
+      errorMsg.classList.add('show');
+      return;
+    }
+
+    idxReceptionDate = parsed;
+    dateReceptionInput.value = formatFrDateTime(parsed);
+
+    if (!validateReceptionDate()){
+      errorMsg.textContent = 'La date de réception doit être antérieure à la date de traitement.';
+      errorMsg.classList.add('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+    errorMsg.textContent = "Veuillez renseigner l'Agent, une Date de réception antérieure à la Date de traitement, les Types, et sélectionner un Compte (RUN/MAY).";
+    dateTraitementInput.value = toDatetimeLocalString(new Date());
+    dateFinTraitementInput.value = '';
+    startIdxTimer();
+  });
+
+  function initNewEntry(){
+    dateReceptionInput.value = '';
+    idxReceptionDate = null;
+    dateTraitementInput.value = '';
+    dateFinTraitementInput.value = '';
+    typesInput.value = '';
+    traiteOkInput.value = '';
+    traiteNokInput.value = '';
+    motifInput.value = '';
+    recalcRecu();
+    dmtInput.value = '00:00:00';
+    dmpcInput.value = '00:00:00';
+    stopIdxTimer();
+  }
+
+  // ==== Historique local (source de vérité pour le tableau) + envoi
+  // vers le Gsheet (onglet INDEXATION) via le gscode fusionné. ====
+  let entries = [];
+  let nextId = 1;
+
+  async function sendEntryToSheet(entry){
+    if (!webappConfigured()) return;
+    try {
+      await fetch(`${getWebappUrl()}?module=${IDX_MODULE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'submit', entry })
+      });
+    } catch (err) {
+      console.error('Erreur envoi INDEXATION vers le Gsheet', err);
+    }
+  }
+
+  function renderTable(){
+    if (entries.length === 0){
+      entryTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      return;
+    }
+    emptyState.style.display = 'none';
+    entryTable.style.display = 'table';
+
+    entryBody.innerHTML = entries.map(t => `
+      <tr>
+        <td class="stub-id">#${String(t.id).padStart(4,'0')}</td>
+        <td>${formatDateTimeSec(t.dateReception)}</td>
+        <td>${formatDateTimeSec(t.dateTraitement)}</td>
+        <td><span class="pill statut">${t.types}</span></td>
+        <td>${t.recu}</td>
+        <td>${t.traiteOk || 0}</td>
+        <td>${t.traiteNok || 0}</td>
+        <td>${t.motif || '—'}</td>
+        <td><span class="pill zone">${t.comptes}</span></td>
+        <td>${formatDateTimeSec(t.dateFinTraitement)}</td>
+        <td><span class="duration">${t.dmt}</span></td>
+        <td><span class="duration">${t.dmpc}</span></td>
+        <td>${t.agent || '—'}</td>
+        <td><button class="del-btn" data-id="${t.id}" title="Supprimer" aria-label="Supprimer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"></path>
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+          </svg>
+        </button></td>
+      </tr>
+    `).join('');
+
+    entryBody.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        entries = entries.filter(t => t.id !== id);
+        renderTable();
+      });
+    });
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const agent = (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+    const dateReceptionRaw = dateReceptionInput.value.trim();
+    const dateTraitement = dateTraitementInput.value;
+    const types = typesInput.value;
+    const traiteOk = traiteOkInput.value;
+    const traiteNok = traiteNokInput.value;
+    const motif = motifInput.value.trim();
+    const comptes = selections.comptes;
+
+    if (!dateReceptionRaw || !idxReceptionDate || !dateTraitement || !types || !comptes || !validateReceptionDate()){
+      errorMsg.classList.add('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+
+    // Fin de traitement prise au moment de l'enregistrement ; DMT et DMPC
+    // sont figés à ce moment-là (au format hh:mm:ss).
+    dateFinTraitementInput.value = toDatetimeLocalString(new Date());
+    stopIdxTimer();
+    const dateFinTraitement = dateFinTraitementInput.value;
+    const dateReception = toDatetimeLocalString(idxReceptionDate); // valeur normalisée envoyée au Gsheet
+    dmtInput.value = toHHMMSS(new Date(dateFinTraitement) - new Date(dateTraitement));
+    dmpcInput.value = toHHMMSS(new Date(dateFinTraitement) - idxReceptionDate);
+    recalcRecu();
+
+    const entry = {
+      id: nextId++,
+      agent, dateReception, dateTraitement, dateFinTraitement,
+      types, traiteOk: Number(traiteOk) || 0, traiteNok: Number(traiteNok) || 0,
+      recu: Number(recuInput.value) || 0, motif, comptes,
+      dmt: dmtInput.value, dmpc: dmpcInput.value
+    };
+    entries.unshift(entry);
+    renderTable();
+    sendEntryToSheet(entry);
+
+    form.reset();
+    document.querySelectorAll('#app-indexation .toggle-btn').forEach(b => b.classList.remove('active'));
+    selections.comptes = null;
+    initNewEntry();
+  });
+
+  exportBtn.addEventListener('click', () => {
+    if (entries.length === 0) return;
+    const header = ['N°','Date de réception','Date de traitement','Types','Reçu','Traité OK','Traité NOK','Motif','Comptes','Fin de traitement','DMT (hh:mm:ss)','DMPC (hh:mm:ss)','Agent'];
+    const rows = entries.map(t => [
+      t.id, t.dateReception, t.dateTraitement, t.types, t.recu, t.traiteOk, t.traiteNok,
+      t.motif || '', t.comptes, t.dateFinTraitement, t.dmt, t.dmpc, t.agent || ''
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `indexation_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  renderTable();
+  initNewEntry();
+})();
+</script>
+
+<script>
+(function(){
+  // ==== Module MAILS — fait partie du gscode fusionné, distingué côté
+  // serveur via le paramètre "module=mails". ====
+  const MAIL_MODULE = 'mails';
+  function getWebappUrl(){ return window.UNIFIED_getWebappUrl(); }
+  function webappConfigured(){ return getWebappUrl() && !getWebappUrl().includes('COLLEZ_ICI'); }
+
+  const BACKLOG_MS = 24 * 60 * 60 * 1000;
+
+  const form = document.getElementById('mail-entryForm');
+  const errorMsg = document.getElementById('mail-errorMsg');
+  const entryBody = document.getElementById('mail-entryBody');
+  const entryTable = document.getElementById('mail-entryTable');
+  const emptyState = document.getElementById('mail-emptyState');
+  const exportBtn = document.getElementById('mail-exportBtn');
+
+  const dateReceptionInput = document.getElementById('mail-dateReception');
+  const dateTraitementInput = document.getElementById('mail-dateTraitement');
+  const dateFinTraitementInput = document.getElementById('mail-dateFinTraitement');
+  const canalInput = document.getElementById('mail-canal');
+  const idActiviteInput = document.getElementById('mail-idActivite');
+  const remarquesInput = document.getElementById('mail-remarques');
+  const backlogInput = document.getElementById('mail-backlog');
+  const dmtInput = document.getElementById('mail-dmt');
+  const dmpcInput = document.getElementById('mail-dmpc');
+
+  const selections = { comptes: null };
+  document.querySelectorAll('#app-mails .toggle-row').forEach(row => {
+    const group = row.dataset.group;
+    row.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        row.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selections[group] = btn.dataset.value;
+      });
+    });
+  });
+
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function toDatetimeLocalString(date){
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+  function toHHMMSS(ms){
+    if (isNaN(ms) || ms === null) return '00:00:00';
+    const negative = ms < 0;
+    ms = Math.abs(ms);
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return (negative ? '-' : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+  function formatDateTimeSec(v){
+    if (!v) return '—';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '—';
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  // ==== Date et Heure de réception : saisie 100% libre (pas de calendrier).
+  // Format attendu : jj/mm/aaaa hh:mm:ss (les secondes sont optionnelles). ====
+  function parseFrDateTime(str){
+    if (!str) return null;
+    const m = str.trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return null;
+    const [, dd, mm, yyyy, hh, mi, ss] = m;
+    const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), ss ? Number(ss) : 0);
+    if (isNaN(d.getTime())) return null;
+    if (d.getDate() !== Number(dd) || d.getMonth() !== Number(mm) - 1 || d.getFullYear() !== Number(yyyy) || d.getHours() !== Number(hh) || d.getMinutes() !== Number(mi)) return null;
+    return d;
+  }
+  function formatFrDateTime(d){
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+  let mailReceptionDate = null; // Date JS validée à partir de la saisie libre
+
+  // ==== Dès que la Date et Heure de réception est renseignée, la Date
+  // début de traitement se remplit automatiquement avec l'heure courante.
+  // La réception doit toujours rester antérieure à la date de traitement.
+  // Le Backlog (réception > 24h) et le DMPC/DMT sont recalculés en direct. ====
+  let mailTimer = null;
+  function stopMailTimer(){ if (mailTimer){ clearInterval(mailTimer); mailTimer = null; } }
+  function startMailTimer(){
+    stopMailTimer();
+    const tick = () => {
+      const now = new Date();
+      if (dateTraitementInput.value){
+        const debut = new Date(dateTraitementInput.value);
+        if (!isNaN(debut.getTime())) dmtInput.value = toHHMMSS(now - debut);
+      }
+      if (mailReceptionDate) {
+        dmpcInput.value = toHHMMSS(now - mailReceptionDate);
+        backlogInput.value = (now - mailReceptionDate) > BACKLOG_MS ? 'Oui' : 'Non';
+      }
+    };
+    tick();
+    mailTimer = setInterval(tick, 1000);
+  }
+
+  function validateReceptionDate(){
+    if (!dateReceptionInput.value.trim()) { dateReceptionInput.setCustomValidity(''); return true; }
+    if (!mailReceptionDate) {
+      dateReceptionInput.setCustomValidity('Format attendu : jj/mm/aaaa hh:mm:ss');
+      return false;
+    }
+    const traitement = dateTraitementInput.value ? new Date(dateTraitementInput.value) : new Date();
+    if (mailReceptionDate >= traitement) {
+      dateReceptionInput.setCustomValidity('La date de réception doit être antérieure à la date début de traitement.');
+      return false;
+    }
+    dateReceptionInput.setCustomValidity('');
+    return true;
+  }
+
+  dateReceptionInput.addEventListener('change', () => {
+    const raw = dateReceptionInput.value.trim();
+    if (!raw) { mailReceptionDate = null; return; }
+
+    const parsed = parseFrDateTime(raw);
+    if (!parsed) {
+      mailReceptionDate = null;
+      errorMsg.textContent = 'Date de réception invalide. Format attendu : jj/mm/aaaa hh:mm:ss (ex. 11/08/2026 09:30:00).';
+      errorMsg.classList.add('show');
+      return;
+    }
+
+    mailReceptionDate = parsed;
+    dateReceptionInput.value = formatFrDateTime(parsed);
+
+    if (!validateReceptionDate()){
+      errorMsg.textContent = 'La date de réception doit être antérieure à la date début de traitement.';
+      errorMsg.classList.add('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+    errorMsg.textContent = "Veuillez renseigner l'Agent, une Date et Heure de réception antérieure à la Date début de traitement, le Canal, l'ID Activités, et sélectionner un Compte (RUN/MAY).";
+    dateTraitementInput.value = toDatetimeLocalString(new Date());
+    dateFinTraitementInput.value = '';
+    startMailTimer();
+  });
+
+  function initNewEntry(){
+    dateReceptionInput.value = '';
+    mailReceptionDate = null;
+    dateTraitementInput.value = '';
+    dateFinTraitementInput.value = '';
+    canalInput.value = '';
+    idActiviteInput.value = '';
+    remarquesInput.value = '';
+    dmtInput.value = '00:00:00';
+    dmpcInput.value = '00:00:00';
+    backlogInput.value = 'Non';
+    stopMailTimer();
+  }
+
+  // ==== Historique local (source de vérité pour le tableau) + envoi
+  // vers le Gsheet (onglet MAILS) via le gscode fusionné. ====
+  let entries = [];
+  let nextId = 1;
+
+  async function sendEntryToSheet(entry){
+    if (!webappConfigured()) {
+      errorMsg.textContent = "⚠️ URL du Gsheet non configurée : cette entrée n'a PAS été envoyée (elle reste uniquement dans ce navigateur). Configurez l'URL dans le panneau Admin (⚙).";
+      errorMsg.classList.add('show');
+      markEntrySyncStatus_(entry.id, 'erreur');
+      return;
+    }
+    try {
+      const res = await fetch(`${getWebappUrl()}?module=${MAIL_MODULE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'submit', entry })
+      });
+      let data = null;
+      try { data = await res.json(); } catch (parseErr) { /* réponse non-JSON, traité ci-dessous */ }
+
+      if (!res.ok || !data || data.ok !== true) {
+        const reason = (data && data.error) ? data.error : `HTTP ${res.status}`;
+        console.error('Erreur envoi MAILS vers le Gsheet :', reason);
+        errorMsg.textContent = `⚠️ Cette entrée n'a PAS été enregistrée dans l'onglet Mails du Gsheet (${reason}). Elle reste seulement visible dans ce navigateur — vérifiez le journal "Exécutions" dans Apps Script.`;
+        errorMsg.classList.add('show');
+        markEntrySyncStatus_(entry.id, 'erreur');
+        return;
+      }
+      markEntrySyncStatus_(entry.id, 'ok');
+    } catch (err) {
+      console.error('Erreur réseau envoi MAILS vers le Gsheet', err);
+      errorMsg.textContent = "⚠️ Cette entrée n'a PAS été enregistrée dans l'onglet Mails du Gsheet (erreur réseau). Elle reste seulement visible dans ce navigateur.";
+      errorMsg.classList.add('show');
+      markEntrySyncStatus_(entry.id, 'erreur');
+    }
+  }
+
+  function markEntrySyncStatus_(id, status){
+    const found = entries.find(t => t.id === id);
+    if (found) found.syncStatus = status;
+    renderTable();
+  }
+
+  function renderTable(){
+    if (entries.length === 0){
+      entryTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      return;
+    }
+    emptyState.style.display = 'none';
+    entryTable.style.display = 'table';
+
+    entryBody.innerHTML = entries.map(t => `
+      <tr>
+        <td class="stub-id">#${String(t.id).padStart(4,'0')}</td>
+        <td>${formatDateTimeSec(t.dateReception)}</td>
+        <td>${formatDateTimeSec(t.dateTraitement)}</td>
+        <td>${t.canal}</td>
+        <td>${t.idActivite}</td>
+        <td>${t.remarques || '—'}</td>
+        <td><span class="pill zone">${t.comptes}</span></td>
+        <td><span class="pill ${t.backlog === 'Oui' ? 'backlog-oui' : 'backlog-non'}">${t.backlog}</span></td>
+        <td>${formatDateTimeSec(t.dateFinTraitement)}</td>
+        <td><span class="duration">${t.dmt}</span></td>
+        <td><span class="duration">${t.dmpc}</span></td>
+        <td>${t.agent || '—'}</td>
+        <td>${mail_syncStatusPill_(t.syncStatus)}</td>
+        <td><button class="del-btn" data-id="${t.id}" title="Supprimer" aria-label="Supprimer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"></path>
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+          </svg>
+        </button></td>
+      </tr>
+    `).join('');
+
+    entryBody.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        entries = entries.filter(t => t.id !== id);
+        renderTable();
+      });
+    });
+  }
+
+  function mail_syncStatusPill_(status){
+    if (status === 'ok') return '<span class="pill zone" style="background:var(--valide-soft);color:var(--valide);">✓ Envoyé</span>';
+    if (status === 'erreur') return '<span class="pill zone" style="background:var(--rejete-soft);color:var(--rejete);">✕ Échec</span>';
+    return '<span class="pill zone">… Envoi</span>';
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const agent = (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+    const dateReceptionRaw = dateReceptionInput.value.trim();
+    const dateTraitement = dateTraitementInput.value;
+    const canal = canalInput.value;
+    const idActivite = idActiviteInput.value.trim();
+    const remarques = remarquesInput.value.trim();
+    const comptes = selections.comptes;
+
+    if (!dateReceptionRaw || !mailReceptionDate || !dateTraitement || !canal || !idActivite || !comptes || !validateReceptionDate()){
+      errorMsg.classList.add('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+
+    // Fin de traitement prise au moment de l'enregistrement ; DMT, DMPC et
+    // Backlog sont figés à ce moment-là.
+    dateFinTraitementInput.value = toDatetimeLocalString(new Date());
+    stopMailTimer();
+    const dateFinTraitement = dateFinTraitementInput.value;
+    const dateReception = toDatetimeLocalString(mailReceptionDate); // valeur normalisée envoyée au Gsheet
+    dmtInput.value = toHHMMSS(new Date(dateFinTraitement) - new Date(dateTraitement));
+    dmpcInput.value = toHHMMSS(new Date(dateFinTraitement) - mailReceptionDate);
+    backlogInput.value = (new Date(dateFinTraitement) - mailReceptionDate) > BACKLOG_MS ? 'Oui' : 'Non';
+
+    const entry = {
+      id: nextId++,
+      agent, dateReception, dateTraitement, dateFinTraitement,
+      canal, idActivite, remarques, comptes,
+      backlog: backlogInput.value,
+      dmt: dmtInput.value, dmpc: dmpcInput.value,
+      syncStatus: 'pending'
+    };
+    entries.unshift(entry);
+    renderTable();
+    sendEntryToSheet(entry);
+
+    form.reset();
+    document.querySelectorAll('#app-mails .toggle-btn').forEach(b => b.classList.remove('active'));
+    selections.comptes = null;
+    initNewEntry();
+  });
+
+  exportBtn.addEventListener('click', () => {
+    if (entries.length === 0) return;
+    const header = ['N°','Date de réception','Date début de traitement','Canal','ID Activités','Remarques','Comptes','Backlog','Fin de traitement','DMT (hh:mm:ss)','DMPC (hh:mm:ss)','Agent'];
+    const rows = entries.map(t => [
+      t.id, t.dateReception, t.dateTraitement, t.canal, t.idActivite,
+      t.remarques || '', t.comptes, t.backlog, t.dateFinTraitement, t.dmt, t.dmpc, t.agent || ''
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mails_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  renderTable();
+  initNewEntry();
+})();
+</script>
+
+<!-- ==========================================================================
+     JS — Module ENCAISSEMENTS (indépendant : formulaire, historique local et
+     logique entièrement séparés des autres modules). Utilise l'URL unique
+     du gscode fusionné pour l'envoi vers le Gsheet, distingué via
+     "module=impayes".
+     ========================================================================== -->
+<script>
+(function(){
+  const IMP_MODULE = 'impayes';
+
+  function getWebappUrl(){ return window.UNIFIED_getWebappUrl(); }
+  function webappConfigured(){ return getWebappUrl() && !getWebappUrl().includes('COLLEZ_ICI'); }
+
+  const form = document.getElementById('impayes-entryForm');
+  const errorMsg = document.getElementById('impayes-errorMsg');
+  const entryTable = document.getElementById('impayes-entryTable');
+  const entryBody = document.getElementById('impayes-entryBody');
+  const emptyState = document.getElementById('impayes-emptyState');
+  const exportBtn = document.getElementById('impayes-exportBtn');
+
+  const dateInput = document.getElementById('impayes-date');
+  const nomClientInput = document.getElementById('impayes-nomClient');
+  const numeroInput = document.getElementById('impayes-numero');
+  const motifInput = document.getElementById('impayes-motif');
+  const montantInput = document.getElementById('impayes-montant');
+
+  // Le champ Agent n'est plus affiché : l'agent enregistré avec chaque
+  // entrée est celui de la session connectée au portail (sans saisie ni
+  // affichage dans ce module).
+  function getCurrentAgent(){
+    return (window.PORTAL_getSessionAgent && window.PORTAL_getSessionAgent()) || '';
+  }
+
+  // ==== Zone : bouton à choix unique obligatoire (RUN / MAY) ====
+  let selectedZone = null;
+  document.querySelectorAll('#app-impayes .toggle-row[data-group="zone"] .toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#app-impayes .toggle-row[data-group="zone"] .toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedZone = btn.dataset.value;
+    });
+  });
+
+  // ==== Date et heure automatiques (jour J), format jj/mm/aaaa hh:mm:ss,
+  // mises à jour en direct tant que le formulaire n'a pas été envoyé. ====
+  function formatDateJour(d){
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+  function setTodayDate(){
+    dateInput.value = formatDateJour(new Date());
+  }
+  setTodayDate();
+  setInterval(setTodayDate, 1000);
+
+  // ==== Historique local (source de vérité pour le tableau) + envoi
+  // vers le Gsheet (onglet dédié) via le gscode fusionné. ====
+  let entries = [];
+  let nextId = 1;
+
+  async function sendEntryToSheet(entry){
+    if (!webappConfigured()) {
+      errorMsg.textContent = "⚠️ URL du Gsheet non configurée : cette entrée n'a PAS été envoyée (elle reste uniquement dans ce navigateur). Configurez l'URL dans le panneau Admin (⚙).";
+      errorMsg.classList.add('show');
+      markEntrySyncStatus_(entry.id, 'erreur');
+      return;
+    }
+    try {
+      const res = await fetch(`${getWebappUrl()}?module=${IMP_MODULE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'submit', entry })
+      });
+      let data = null;
+      try { data = await res.json(); } catch (parseErr) { /* réponse non-JSON, traité ci-dessous */ }
+
+      if (!res.ok || !data || data.ok !== true) {
+        const reason = (data && data.error) ? data.error : `HTTP ${res.status}`;
+        console.error('Erreur envoi Encaissements vers le Gsheet :', reason);
+        errorMsg.textContent = `⚠️ Cette entrée n'a PAS été enregistrée dans le Gsheet (${reason}). Elle reste seulement visible dans ce navigateur.`;
+        errorMsg.classList.add('show');
+        markEntrySyncStatus_(entry.id, 'erreur');
+        return;
+      }
+      markEntrySyncStatus_(entry.id, 'ok');
+    } catch (err) {
+      console.error('Erreur réseau envoi Encaissements vers le Gsheet', err);
+      errorMsg.textContent = "⚠️ Cette entrée n'a PAS été enregistrée dans le Gsheet (erreur réseau). Elle reste seulement visible dans ce navigateur.";
+      errorMsg.classList.add('show');
+      markEntrySyncStatus_(entry.id, 'erreur');
+    }
+  }
+
+  function markEntrySyncStatus_(id, status){
+    const found = entries.find(t => t.id === id);
+    if (found) found.syncStatus = status;
+    renderTable();
+  }
+
+  function impayes_syncStatusPill_(status){
+    if (status === 'ok') return '<span class="pill zone" style="background:var(--valide-soft);color:var(--valide);">✓ Envoyé</span>';
+    if (status === 'erreur') return '<span class="pill zone" style="background:var(--rejete-soft);color:var(--rejete);">✕ Échec</span>';
+    return '<span class="pill zone">… Envoi</span>';
+  }
+
+  function renderTable(){
+    if (entries.length === 0){
+      entryTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      return;
+    }
+    emptyState.style.display = 'none';
+    entryTable.style.display = 'table';
+
+    entryBody.innerHTML = entries.map(t => `
+      <tr>
+        <td>${t.date}</td>
+        <td>${t.nomClient}</td>
+        <td>${t.numero}</td>
+        <td>${t.motif}</td>
+        <td><span class="pill zone">${t.zone}</span></td>
+        <td>${t.montant}</td>
+        <td>${t.agent || '—'}</td>
+        <td>${impayes_syncStatusPill_(t.syncStatus)}</td>
+        <td><button class="del-btn" data-id="${t.id}" title="Supprimer" aria-label="Supprimer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"></path>
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+          </svg>
+        </button></td>
+      </tr>
+    `).join('');
+
+    entryBody.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        entries = entries.filter(t => t.id !== id);
+        renderTable();
+      });
+    });
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const nomClient = nomClientInput.value.trim();
+    const numero = numeroInput.value.trim();
+    const motif = motifInput.value;
+    const montant = montantInput.value;
+    const agent = getCurrentAgent();
+
+    if (!nomClient || !numero || !motif || !selectedZone || montant === '' || Number(montant) < 0 || !agent){
+      errorMsg.textContent = "Veuillez renseigner le Nom et prénom du client, le Numéro, le Motif, la Zone (RUN/MAY) et le Montant.";
+      errorMsg.classList.add('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+
+    setTodayDate();
+
+    const entry = {
+      id: nextId++,
+      date: dateInput.value,
+      nomClient, numero, motif,
+      zone: selectedZone,
+      montant: Number(montant),
+      agent,
+      syncStatus: 'pending'
+    };
+    entries.unshift(entry);
+    renderTable();
+    sendEntryToSheet(entry);
+
+    form.reset();
+    setTodayDate();
+    document.querySelectorAll('#app-impayes .toggle-btn').forEach(b => b.classList.remove('active'));
+    selectedZone = null;
+  });
+
+  exportBtn.addEventListener('click', () => {
+    if (entries.length === 0) return;
+    const header = ['Date', 'Nom et prénom du client', 'Numéro', 'Motif', 'Zone', 'Montant', 'Agent'];
+    const rows = entries.map(t => [t.date, t.nomClient, t.numero, t.motif, t.zone, t.montant, t.agent || '']);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `impayes_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  renderTable();
+})();
+</script>
+
+<script>
+(function(){
+  const PORTAL_ADMIN_PASSWORD = 'admin2026';
+
+  const authOverlay = document.getElementById('portalAdminAuthOverlay');
+  const authClose = document.getElementById('portalAdminAuthClose');
+  const passwordInput = document.getElementById('portalAdminPasswordInput');
+  const authErr = document.getElementById('portalAdminAuthErr');
+  const authSubmit = document.getElementById('portalAdminAuthSubmit');
+
+  const manageOverlay = document.getElementById('portalAdminManageOverlay');
+  const manageClose = document.getElementById('portalAdminManageClose');
+  const manageErr = document.getElementById('portalAdminManageErr');
+  const saveBtn = document.getElementById('portalAdminSaveBtn');
+  const urlUnifiedInput = document.getElementById('portalUrlUnified');
+  const urlConfigInput = document.getElementById('portalUrlConfig');
+
+  window.openPortalAdminAuth = function(){
+    passwordInput.value = '';
+    authErr.classList.remove('show');
+    authOverlay.classList.add('show');
+    passwordInput.focus();
+  };
+
+  function closeAuth(){ authOverlay.classList.remove('show'); }
+  function closeManage(){ manageOverlay.classList.remove('show'); }
+
+  authClose.addEventListener('click', closeAuth);
+  authOverlay.addEventListener('click', (e) => { if (e.target === authOverlay) closeAuth(); });
+
+  authSubmit.addEventListener('click', () => {
+    if (passwordInput.value === PORTAL_ADMIN_PASSWORD) {
+      closeAuth();
+      openManage();
+    } else {
+      authErr.classList.add('show');
+    }
+  });
+  passwordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') authSubmit.click();
+  });
+
+  function openManage(){
+    manageErr.classList.remove('show');
+    urlUnifiedInput.value = (window.UNIFIED_getWebappUrl && window.UNIFIED_getWebappUrl()) || '';
+    urlConfigInput.value = (window.CONFIG_getWebappUrl && window.CONFIG_getWebappUrl()) || '';
+    manageOverlay.classList.add('show');
+  }
+
+  manageClose.addEventListener('click', closeManage);
+  manageOverlay.addEventListener('click', (e) => { if (e.target === manageOverlay) closeManage(); });
+
+  saveBtn.addEventListener('click', () => {
+    const urlUnified = urlUnifiedInput.value.trim();
+    const urlConfig = urlConfigInput.value.trim();
+    if (!urlUnified || !urlConfig) {
+      manageErr.classList.add('show');
+      return;
+    }
+    if (window.UNIFIED_setWebappUrl) window.UNIFIED_setWebappUrl(urlUnified);
+    if (window.CONFIG_setWebappUrl) window.CONFIG_setWebappUrl(urlConfig);
+    closeManage();
+    alert('URL enregistrées. RPI OI, Guichet VDC, ASP OI, Facebook, Indexation, Mails et Encaissements utilisent désormais la même URL fusionnée. Rechargez la page pour resynchroniser la liste des agents et l\'historique Facebook.');
+  });
+})();
+</script>
+
+</body>
+</html>
